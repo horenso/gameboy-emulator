@@ -1,20 +1,18 @@
+mod cartridge;
+
+use cartridge::Cartridge;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use std::env::args;
-use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 
 fn main() -> Result<(), String> {
     let cartridge_path_arg = args()
         .nth(1)
-        .expect("Expected one argument with the path to the cartridge.");
-    let cartridge_path = Path::new(&cartridge_path_arg);
-
-    if !cartridge_path.exists() {
-        return Err(format!("Path {} does not exist!", cartridge_path.display()));
-    }
+        .unwrap_or("Expected one argument with the path to the cartridge.".to_string());
+    let cartridge = Cartridge::load_from_file(cartridge_path_arg)?;
 
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
