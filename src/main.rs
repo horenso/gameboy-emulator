@@ -8,6 +8,9 @@ use std::env::args;
 use std::thread::sleep;
 use std::time::Duration;
 
+// TODO: Remove, this is to discover tests
+mod cpu;
+
 fn main() -> Result<(), String> {
     let cartridge_path_arg = args()
         .nth(1)

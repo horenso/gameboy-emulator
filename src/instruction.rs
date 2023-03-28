@@ -1,3 +1,7 @@
+enum AddressingMode {
+
+}
+
 enum InstructionType {
     NoOp,
     Load,
@@ -23,11 +27,13 @@ enum Register {
     Af,
     Be,
     Hl,
+    Sp,
+    Pc
 }
 
 pub struct Instruction {
     opcode: u8,
-    addr_mode: Mode,
+    addr_mode: AddressingMode,
     reg_1: Register,
     reg_2: Register,
     condition: Condition,
