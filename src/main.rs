@@ -1,6 +1,13 @@
+// TODO: Figure out how to properly structure Rust project.
+mod bus;
 mod cartridge;
+mod cpu;
+mod instruction;
+mod registers;
 
+use bus::Bus;
 use cartridge::Cartridge;
+use cpu::Cpu;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -8,14 +15,14 @@ use std::env::args;
 use std::thread::sleep;
 use std::time::Duration;
 
-// TODO: Remove, this is to discover tests
-mod cpu;
-
 fn main() -> Result<(), String> {
     let cartridge_path_arg = args()
         .nth(1)
         .unwrap_or("Expected one argument with the path to the cartridge.".to_string());
     let cartridge = Cartridge::load_from_file(cartridge_path_arg)?;
+
+    let bus = Bus::new(cartridge);
+    let mut cpu = Cpu::new();
 
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
@@ -51,7 +58,11 @@ fn main() -> Result<(), String> {
             }
         }
         canvas.present();
-        sleep(Duration::from_millis(100));
+
+        // Executing cpu instructions
+        cpu.fetch_and_execute(&bus);
+
+        sleep(Duration::from_millis(400));
     }
 
     Ok(())

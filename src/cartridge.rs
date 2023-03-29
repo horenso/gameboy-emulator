@@ -1,7 +1,7 @@
 use std::{fs::File, io::Read};
 
 pub struct Cartridge {
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 }
 
 impl Cartridge {
