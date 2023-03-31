@@ -29,8 +29,16 @@ fn combine_to_u16(high: u8, low: u8) -> u16 {
 impl Registers {
     pub fn new() -> Self {
         Registers {
+            a: 0x0001,
+            f: 0x00B0,
+            b: 0x0000,
+            c: 0x0013,
+            d: 0x0000,
+            e: 0x00D8,
+            h: 0x0001,
+            l: 0x004D,
             pc: 0x0100, // The entrypoint after the Nintendo internal ROM
-            ..Default::default()
+            sp: 0xFFFE,
         }
     }
 

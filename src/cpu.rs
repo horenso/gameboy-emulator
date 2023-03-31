@@ -1,5 +1,5 @@
 use crate::bus::Bus;
-use crate::instruction::{AddrMode, InstType, Instruction};
+use crate::instruction::{InstType, Instruction};
 use crate::registers::Registers;
 
 pub struct Cpu {

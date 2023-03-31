@@ -1,3 +1,5 @@
+#![allow(dead_code)] // TODO: Obv delete this at some point
+
 // TODO: Figure out how to properly structure Rust project.
 mod bus;
 mod cartridge;
