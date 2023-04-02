@@ -11,4 +11,4 @@ https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20
 
 https://github.com/rockytriton/LLD_gbemu/raw/main/docs/The%20Cycle-Accurate%20Game%20Boy%20Docs.pdf
 
-https://github.com/rockytriton/LLD_gbemu/raw/main/docs/gbctr.pdf
+https://gekkio.fi/files/gb-docs/gbctr.pdf
