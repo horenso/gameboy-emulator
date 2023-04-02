@@ -4,6 +4,7 @@
 mod bus;
 mod cartridge;
 mod cpu;
+mod helper;
 mod instruction;
 mod registers;
 
@@ -14,6 +15,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use std::env::args;
+use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -24,7 +26,7 @@ fn main() -> Result<(), String> {
     let cartridge = Cartridge::load_from_file(cartridge_path_arg)?;
 
     let bus = Bus::new(cartridge);
-    let mut cpu = Cpu::new();
+    let mut cpu = Cpu::new(Rc::new(bus));
 
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
@@ -62,7 +64,7 @@ fn main() -> Result<(), String> {
         canvas.present();
 
         // Executing cpu instructions
-        cpu.fetch_and_execute(&bus);
+        cpu.fetch_and_execute();
 
         sleep(Duration::from_millis(400));
     }

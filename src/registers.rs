@@ -1,3 +1,5 @@
+use crate::helper::{combine_to_u16, split_u16};
+
 #[derive(Default)]
 pub struct Registers {
     pub a: u8,
@@ -14,16 +16,6 @@ pub struct Registers {
 
     pub sp: u16,
     pub pc: u16,
-}
-
-fn split_u16(value: u16) -> (u8, u8) {
-    let high = (value >> 8) as u8;
-    let low = (value & 0xFF) as u8;
-    (high, low)
-}
-
-fn combine_to_u16(high: u8, low: u8) -> u16 {
-    (high as u16) << 8 | low as u16
 }
 
 impl Registers {

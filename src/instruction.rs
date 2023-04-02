@@ -1,7 +1,7 @@
 #[derive(PartialEq, Debug)]
 pub enum InstType {
-    Unknown,
-    Prefix, // 0xCB is a prefex 2 byte encoded instructions
+    // 0xCB is a prefex 2 byte encoded instructions
+    Prefix,
 
     // Control
     NoOp,
@@ -14,9 +14,10 @@ pub enum InstType {
     Ld,
     Ldi, // load increment
     Ldd, // load decrement
-    Ldh, // load heigh 0xFFXX\
+    Ldh, // load heigh 0xFFxx
 
     Jp,
+    Jr, // Jump relative
 
     // Arithmetic
     Add,
@@ -92,7 +93,6 @@ pub enum Reg {
 
 #[derive(Debug)]
 pub struct Instruction {
-    pub opcode: u8,
     pub inst_type: InstType,
     pub addr_mode: AddrMode,
     pub reg_1: Reg,
@@ -102,47 +102,111 @@ pub struct Instruction {
 
 impl Instruction {
     pub fn from_opcode(opcode: u8) -> Self {
-        let mut inst_type = InstType::Unknown;
-        let mut addr_mode = AddrMode::None;
-        let mut reg_1 = Reg::None;
-        let mut reg_2 = Reg::None;
-        let mut cond = Cond::None;
-        match opcode {
-            0x00 => {
-                inst_type = InstType::NoOp;
-            }
-            0x40..=0x75 => {
-                inst_type = InstType::Ld;
-            }
-            0x76 => {
-                inst_type = InstType::Halt;
-            }
-            0x77..=0x7F => {
-                inst_type = InstType::Ld;
-            }
+        let x = opcode >> 6;
+        let y = (opcode & 0b00111000) >> 3;
+        let z = opcode & 0b00000111;
 
-            0x80..=0xBF => {
-                return Self::arithmetic_logic(opcode);
-            }
-
-            0xC3 => {
-                inst_type = InstType::Jp;
-                addr_mode = AddrMode::Addr16;
-                cond = Cond::NotZ;
-            }
-            _ => {
-                println!("Unsupported opcode: {}", opcode);
-                panic!("Dunno what to do!");
-            }
+        match x {
+            0 => Self::x0(y, z),
+            1 if y == 0 && z == 0 => Instruction {
+                inst_type: InstType::Halt,
+                addr_mode: AddrMode::None,
+                reg_1: Reg::None,
+                reg_2: Reg::None,
+                cond: Cond::None,
+            },
+            1 => Instruction {
+                inst_type: InstType::Ld,
+                addr_mode: AddrMode::Data8,
+                reg_1: Self::get_reg(y),
+                reg_2: Self::get_reg(z),
+                cond: Cond::None,
+            },
+            2 => return Self::arithmetic_logic(y, z, false),
+            3 => unreachable!(), // TODO
+            _ => unreachable!(),
         }
+    }
 
-        Instruction {
-            opcode,
-            inst_type,
-            addr_mode,
-            reg_1,
-            reg_2,
-            cond,
+    fn x0(y: u8, z: u8) -> Instruction {
+        match z {
+            0 => match y {
+                0 => Instruction {
+                    inst_type: InstType::NoOp,
+                    addr_mode: AddrMode::None,
+                    reg_1: Reg::None,
+                    reg_2: Reg::None,
+                    cond: Cond::None,
+                },
+                1 => Instruction {
+                    inst_type: InstType::Halt,
+                    addr_mode: AddrMode::Addr16,
+                    reg_1: Reg::Sp,
+                    reg_2: Reg::None,
+                    cond: Cond::None,
+                },
+                2 => Instruction {
+                    inst_type: InstType::Stop,
+                    addr_mode: AddrMode::None,
+                    reg_1: Reg::None,
+                    reg_2: Reg::None,
+                    cond: Cond::None,
+                },
+                3 => Instruction {
+                    inst_type: InstType::Jr,
+                    addr_mode: AddrMode::Reg8,
+                    reg_1: Reg::None,
+                    reg_2: Reg::None,
+                    cond: Cond::None,
+                },
+                4..=7 => Instruction {
+                    inst_type: InstType::Jr,
+                    addr_mode: AddrMode::Reg8,
+                    reg_1: Reg::None,
+                    reg_2: Reg::None,
+                    cond: Self::get_cond(y - 4),
+                },
+                _ => unreachable!(),
+            },
+            1 if y & 1 == 0 => Instruction {
+                inst_type: InstType::Ld,
+                addr_mode: AddrMode::Data16,
+                reg_1: Reg::None,
+                reg_2: Reg::None,
+                cond: Cond::None,
+            },
+            1 => Instruction {
+                inst_type: InstType::Add,
+                addr_mode: AddrMode::Data16,
+                reg_1: Reg::None,
+                reg_2: Reg::None,
+                cond: Cond::None,
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    fn get_reg(code: u8) -> Reg {
+        match code {
+            0 => Reg::B,
+            1 => Reg::C,
+            2 => Reg::D,
+            3 => Reg::E,
+            4 => Reg::H,
+            5 => Reg::L,
+            6 => Reg::Hl,
+            7 => Reg::A,
+            _ => unreachable!(),
+        }
+    }
+
+    fn get_cond(code: u8) -> Cond {
+        match code {
+            0 => Cond::NotZ,
+            1 => Cond::Z,
+            2 => Cond::NotC,
+            3 => Cond::C,
+            _ => unreachable!(),
         }
     }
 
@@ -160,57 +224,40 @@ impl Instruction {
             0x80..=0xBF => InstType::Res,
             0xC0..=0xFF => InstType::Set,
         };
-        let reg_1 = match opcode % 8 {
-            0 => Reg::B,
-            1 => Reg::C,
-            2 => Reg::D,
-            3 => Reg::E,
-            4 => Reg::H,
-            5 => Reg::L,
-            6 => Reg::Hl,
-            7 => Reg::A,
-            _ => unreachable!(),
-        };
         Instruction {
-            opcode,
             inst_type,
             addr_mode: AddrMode::None,
-            reg_1,
+            reg_1: Reg::A,
             reg_2: Reg::None,
             cond: Cond::None,
         }
     }
 
-    fn arithmetic_logic(opcode: u8) -> Self {
-        let inst_type = match opcode {
-            0x80..=0x87 => InstType::Add,
-            0x88..=0x8F => InstType::Adc,
-            0x90..=0x97 => InstType::Sub,
-            0x98..=0x9F => InstType::Sbc,
-            0xA0..=0xA7 => InstType::And,
-            0xA8..=0xAF => InstType::Xor,
-            0xB0..=0xB7 => InstType::Or,
-            0xB8..=0xBF => InstType::Cp,
-            _ => unreachable!(),
-        };
-        let reg_1 = Reg::A;
-        let reg_2 = match opcode % 8 {
-            0 => Reg::B,
-            1 => Reg::C,
-            2 => Reg::D,
-            3 => Reg::E,
-            4 => Reg::H,
-            5 => Reg::L,
-            6 => Reg::Hl,
-            7 => Reg::A,
+    fn arithmetic_logic(y: u8, z: u8, immediate: bool) -> Self {
+        let inst_type = match y {
+            0 => InstType::Add,
+            1 => InstType::Adc,
+            2 => InstType::Sub,
+            3 => InstType::Sbc,
+            4 => InstType::And,
+            5 => InstType::Xor,
+            6 => InstType::Or,
+            7 => InstType::Cp,
             _ => unreachable!(),
         };
         Instruction {
-            opcode,
             inst_type,
-            addr_mode: AddrMode::None,
-            reg_1,
-            reg_2,
+            addr_mode: if immediate {
+                AddrMode::None
+            } else {
+                AddrMode::Data8
+            },
+            reg_1: Reg::A,
+            reg_2: if immediate {
+                Self::get_reg(z)
+            } else {
+                Reg::None
+            },
             cond: Cond::None,
         }
     }
