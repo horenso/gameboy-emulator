@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::bus::Bus;
 use crate::helper::combine_to_u16;
-use crate::instruction::{AddrMode, InstType, Instruction, Reg};
+use crate::instruction::{AddrMode, Inst, Instruction, Reg};
 use crate::registers::Registers;
 
 pub struct Cpu {
@@ -32,7 +32,7 @@ impl Cpu {
     fn fetch(&mut self) -> Instruction {
         let fetched = self.read();
         let mut inst = Instruction::from_opcode(fetched);
-        if inst.inst_type == InstType::Prefix {
+        if inst.inst_type == Inst::Prefix {
             let fetched = self.read();
             inst = Instruction::from_opcode(fetched);
         }
@@ -56,12 +56,12 @@ impl Cpu {
             _ => {}
         }
         match inst.inst_type {
-            InstType::NoOp => {
+            Inst::NoOp => {
                 self.regs.pc += 1;
             }
 
             // Arithmetic
-            InstType::Add
+            Inst::Add
             _ => {
                 panic!("I don't know how to execute {:?}!", inst.inst_type);
             }
@@ -69,7 +69,7 @@ impl Cpu {
     }
 
     fn execute_ld(&mut self) {
-        
+
     }
 
     fn execute_add(&mut self, operand: Reg) {
