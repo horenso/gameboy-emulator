@@ -4,6 +4,7 @@
 mod bus;
 mod cartridge;
 mod cpu;
+mod decode;
 mod helper;
 mod instruction;
 mod registers;
