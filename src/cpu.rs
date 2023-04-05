@@ -19,12 +19,12 @@ impl Cpu {
         }
     }
 
-    pub fn fetch_and_execute(&mut self, bus: &Bus) {
+    pub fn fetch_and_execute(&mut self) {
         let inst = self.fetch();
         self.execute(inst);
     }
 
-    fn read(self) -> u8 {
+    fn read(&mut self) -> u8 {
         let data = self.bus.read_at_address(self.regs.pc);
         self.regs.pc += 1;
         data

@@ -15,9 +15,10 @@ pub enum Inst {
     // Jumps
     Jr(Operand),
     Jp(Operand),
-    Call,
-    Ret,
-    Reti,
+    Call(Cond),
+    Ret(Cond),
+    Reti, // return from interrupt handler
+    Rst(u8),
 
     // Arithmetic
     Add(Operand),
@@ -59,9 +60,9 @@ pub enum Inst {
 
 #[derive(PartialEq, Debug)]
 pub enum Operand {
-    I8,
-    U8,
-    U16,
+    D8,
+    D16,
+    A8,
     R8(Reg8),
     R16(Reg16),
     ImmR16(Reg16),
@@ -69,6 +70,7 @@ pub enum Operand {
 
 #[derive(PartialEq, Debug)]
 pub enum Cond {
+    Always,
     Nz,
     Z,
     Nc,

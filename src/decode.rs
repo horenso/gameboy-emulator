@@ -9,13 +9,13 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
         0 => match z {
             0 => match y {
                 0 => Inst::NoOp,
-                1 => Inst::Ld(Operand::U8, Operand::R16(Reg16::Sp)),
+                1 => Inst::Ld(Operand::D8, Operand::R16(Reg16::Sp)),
                 2 => Inst::Stop,
-                3 => Inst::Jr(Operand::I8),
+                3 => Inst::Jr(Operand::A8),
                 4..=7 => Inst::Jr(operand_imm16(y - 4)),
                 _ => unreachable!(),
             },
-            1 if y & 1 == 0 => Inst::Ld(operand_imm16(y >> 1), Operand::U16),
+            1 if y & 1 == 0 => Inst::Ld(operand_imm16(y >> 1), Operand::D16),
             1 => Inst::AddHl(rp_table(y >> 1)),
             2 => match y {
                 0 => Inst::Ld(Operand::ImmR16(Reg16::Bc), Operand::R8(Reg8::A)),
@@ -26,12 +26,13 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
                 5 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::De)),
                 6 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::HlIncr)),
                 7 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::HlDecr)),
+                _ => unreachable!(),
             },
             3 if y & 1 == 0 => Inst::Inc(Operand::R16(rp_table(y >> 1))),
             3 => Inst::Dec(Operand::R16(rp_table(y >> 1))),
             4 => Inst::Inc(operand(y)),
             5 => Inst::Dec(operand(y)),
-            6 => Inst::Ld(operand(y), Operand::U8),
+            6 => Inst::Ld(operand(y), Operand::D8),
             7 => match y {
                 0 => Inst::Rlca,
                 1 => Inst::Rrca,
@@ -43,23 +44,37 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
                 7 => Inst::Ccf,
                 _ => unreachable!(),
             },
+            _ => unreachable!(),
         },
         1 if y == 0 && z == 0 => Inst::Halt,
         1 => Inst::Ld(operand(y), operand(z)),
-        2 => arithmetic_logic(y, z),
+        2 => arithmetic_logic(y, z, false),
         3 => match z {
             0 => match y {
                 0..=3 => Inst::Ret(cond(y)),
-                4 => Inst::Ld(Operand::U8, Operand::R8(Reg8::A)),
+                4 => Inst::Ld(Operand::D8, Operand::R8(Reg8::A)),
                 5 => Inst::AddSp,
-                6 => Inst::Ld(Operand::R16(Reg16::Hl), Operand::R16(Reg16::SpPlusD)),
+                6 => Inst::Ld(Operand::R8(Reg8::A), Operand::A8),
+                7 => Inst::Ld(Operand::R16(Reg16::Hl), Operand::R16(Reg16::SpPlusD)),
+                _ => unreachable!(),
             },
             1 if y & 1 == 0 => Inst::Pop(rp2_table(y >> 1)),
             1 => match y >> 1 {
-                0 => Inst::Ret,
+                0 => Inst::Ret(Cond::Always),
                 1 => Inst::Reti,
                 2 => Inst::Jp(Operand::R16(Reg16::Hl)),
                 3 => Inst::Ld(Operand::R16(Reg16::Sp), Operand::R16(Reg16::Hl)),
+                4 => match y {
+                    0..=3 => Inst::Call(cond(y)),
+                    4..=7 => Inst::NoOp,
+                    _ => unreachable!(),
+                },
+                5 if y & 1 == 0 => Inst::Push(rp2_table(y >> 1)),
+                5 if y >> 1 == 0 => Inst::Call(Cond::Always),
+                5 => Inst::NoOp,
+                6 => arithmetic_logic(y, z, true),
+                7 => Inst::Rst(y * 8),
+                _ => unreachable!(),
             },
             _ => unreachable!(), // TODO
         },
@@ -121,16 +136,17 @@ fn cond(code: u8) -> Cond {
     }
 }
 
-fn arithmetic_logic(y: u8, z: u8) -> Inst {
+fn arithmetic_logic(y: u8, z: u8, immediate: bool) -> Inst {
+    let operand = if immediate { Operand::D8 } else { operand(z) };
     match y {
-        0 => Inst::Add(operand(z)),
-        1 => Inst::Adc(operand(z)),
-        2 => Inst::Sub(operand(z)),
-        3 => Inst::Sbc(operand(z)),
-        4 => Inst::And(operand(z)),
-        5 => Inst::Xor(operand(z)),
-        6 => Inst::Or(operand(z)),
-        7 => Inst::Cp(operand(z)),
+        0 => Inst::Add(operand),
+        1 => Inst::Adc(operand),
+        2 => Inst::Sub(operand),
+        3 => Inst::Sbc(operand),
+        4 => Inst::And(operand),
+        5 => Inst::Xor(operand),
+        6 => Inst::Or(operand),
+        7 => Inst::Cp(operand),
         _ => unreachable!(),
     }
 }
