@@ -2,8 +2,8 @@
 pub enum Inst {
     // 0xCB is a prefix 2 byte encoded instructions
     Prefix,
-    Ld(LdOp, LdOp),
-    Ldh(LdOp, LdOp),
+    Ld(Operand, Operand),
+    Ldh(Operand, Operand),
     Push(Reg16),
     Pop(Reg16),
 
@@ -14,41 +14,54 @@ pub enum Inst {
     Di,
     Ei,
     Jp,
-    Jr, // Jump relative
+
+    // Jumps
+    Jr(Operand),
 
     // Arithmetic
-    Add(Reg8),
-    Adc(Reg8), // add with carry
-    Sub(Reg8),
-    Sbc(Reg8), // subtract with carry
-    And(Reg8),
-    Xor(Reg8),
-    Or(Reg8),
-    Cp(Reg8),  // compare
-    Cpl(Reg8), // Flip bits (xor 0xFF)
-    Inc(Reg8),
-    Dec(Reg8),
+    Add(Operand),
+    AddHl(Reg16),
+    Adc(Operand), // add with carry
+    Sub(Operand),
+    Sbc(Operand), // subtract with carry
+    And(Operand),
+    Xor(Operand),
+    Or(Operand),
+    Cp(Operand),  // compare
+    Cpl(Operand), // Flip bits (xor 0xFF)
+    Inc(Operand),
+    Dec(Operand),
 
     Daa, // decimal adjust A
 
     // Rotations and shifts
-    Rlc(Reg8),
-    Rrc(Reg8),
-    Rl(Reg8),
-    Rr(Reg8),
-    Sla(Reg8),
-    Sra(Reg8),
-    Swap(Reg8),
-    Srl(Reg8),
-    Bit(Reg8, u8),
-    Res(Reg8, u8),
-    Set(Reg8, u8),
+    Rlc(Operand),
+    Rrc(Operand),
+    Rl(Operand),
+    Rr(Operand),
+    Sla(Operand),
+    Sra(Operand),
+    Swap(Operand),
+    Srl(Operand),
+    Bit(u8, Operand),
+    Res(u8, Operand),
+    Set(u8, Operand),
 }
 
 #[derive(PartialEq, Debug)]
-pub enum LdOp {
-    D8,
-    D16,
+pub enum Operand {
+    I8,
+    U8,
+    U16,
+    R8(Reg8),
+    R16(Reg16),
+    ImmR16(Reg16, Offset),
+    A8,
+    A16,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum ArthLogOp {
     R8(Reg8),
     R16 {
         reg: Reg16,
@@ -68,13 +81,6 @@ pub enum Cond {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum Offset {
-    Decrement,
-    No,
-    Increment,
-}
-
-#[derive(PartialEq, Debug)]
 pub enum Reg8 {
     A,
     B,
@@ -90,6 +96,8 @@ pub enum Reg16 {
     Bc,
     De,
     Hl,
+    HlIncr,
+    HlDecr,
     Sp,
 }
 
@@ -98,5 +106,3 @@ pub enum Reg {
     R8(Reg8),
     R16(Reg16),
 }
-
-impl Instruction {

@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::bus::Bus;
 use crate::helper::combine_to_u16;
-use crate::instruction::{AddrMode, Inst, Instruction, Reg};
+use crate::instruction::{Inst, Reg};
 use crate::registers::Registers;
 
 pub struct Cpu {
