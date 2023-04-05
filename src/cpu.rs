@@ -1,7 +1,8 @@
 use std::rc::Rc;
 
 use crate::bus::Bus;
-use crate::helper::combine_to_u16;
+use crate::decode::*;
+// use crate::helper::combine_to_u16;
 use crate::instruction::{Inst, Reg};
 use crate::registers::Registers;
 
@@ -29,95 +30,68 @@ impl Cpu {
         data
     }
 
-    fn fetch(&mut self) -> Instruction {
+    fn fetch(&mut self) -> Inst {
         let fetched = self.read();
-        let mut inst = Instruction::from_opcode(fetched);
-        if inst.inst_type == Inst::Prefix {
+        let mut inst = decode_unprefixed(fetched);
+        if inst == Inst::Prefix {
             let fetched = self.read();
-            inst = Instruction::from_opcode(fetched);
+            inst = decode_prefixed(fetched);
         }
         println!("{:?}", inst);
         inst
     }
 
-    pub fn execute(&mut self, inst: Instruction) {
+    pub fn execute(&mut self, inst: Inst) {
         let data8: u8 = 0;
         let data16: u16 = 0;
         // fetch additional data
-        match inst.addr_mode {
-            AddrMode::Data8 | AddrMode::Addr8 => {
-                data8 = self.read();
-            }
-            AddrMode::Data16 | AddrMode::Addr16 => {
-                let d1 = self.read();
-                let d2 = self.read();
-                data16 = combine_to_u16(d1, d2);
-            }
-            _ => {}
-        }
-        match inst.inst_type {
-            Inst::NoOp => {
-                self.regs.pc += 1;
-            }
+        // match inst.addr_mode {
+        //     AddrMode::Data8 | AddrMode::Addr8 => {
+        //         data8 = self.read();
+        //     }
+        //     AddrMode::Data16 | AddrMode::Addr16 => {
+        //         let d1 = self.read();
+        //         let d2 = self.read();
+        //         data16 = combine_to_u16(d1, d2);
+        //     }
+        //     _ => {}
+        // }
+        // match inst.inst_type {
+        //     Inst::NoOp => {
+        //         self.regs.pc += 1;
+        //     }
 
-            // Arithmetic
-            Inst::Add
-            _ => {
-                panic!("I don't know how to execute {:?}!", inst.inst_type);
-            }
-        }
+        //     // Arithmetic
+        //     Inst::Add
+        //     _ => {
+        //         panic!("I don't know how to execute {:?}!", inst.inst_type);
+        //     }
+        // }
     }
 
-    fn execute_ld(&mut self) {
+    fn execute_ld(&mut self) {}
 
-    }
+    fn execute_add(&mut self, operand: Reg) {}
 
-    fn execute_add(&mut self, operand: Reg) {
+    fn execute_adc(&mut self, operand: Reg) {}
 
-    }
+    fn execute_sub(&mut self, operand: Reg) {}
 
-    fn execute_adc(&mut self, operand: Reg) {
+    fn execute_sbc(&mut self, operand: Reg) {}
 
-    }
+    fn execute_and(&mut self, operand: Reg) {}
 
-    fn execute_sub(&mut self, operand: Reg) {
+    fn execute_xor(&mut self, operand: Reg) {}
 
-    }
+    fn execute_or(&mut self, operand: Reg) {}
 
-    fn execute_sbc(&mut self, operand: Reg) {
+    fn execute_cp(&mut self, operand: Reg) {}
 
-    }
+    fn execute_cpl(&mut self, operand: Reg) {}
 
-    fn execute_and(&mut self, operand: Reg) {
+    fn execute_inc(&mut self) {}
 
-    }
+    fn execute_dec(&mut self) {}
 
-    fn execute_xor(&mut self, operand: Reg) {
-
-    }
-
-    fn execute_or(&mut self, operand: Reg) {
-
-    }
-
-    fn execute_cp(&mut self, operand: Reg) {
-
-    }
-
-    fn execute_cpl(&mut self, operand: Reg) {
-
-    }
-
-    fn execute_inc(&mut self) {
-
-    }
-
-    fn execute_dec(&mut self) {
-
-    }
-
-    fn execute_daa(&mut self) {
-
-    }
-
+    fn execute_daa(&mut self) {}
 }

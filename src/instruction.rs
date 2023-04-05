@@ -1,9 +1,7 @@
 #[derive(PartialEq, Debug)]
 pub enum Inst {
-    // 0xCB is a prefix 2 byte encoded instructions
-    Prefix,
+    Prefix, // 0xCB is a prefix 2 byte encoded instructions
     Ld(Operand, Operand),
-    Ldh(Operand, Operand),
     Push(Reg16),
     Pop(Reg16),
 
@@ -13,26 +11,27 @@ pub enum Inst {
     Stop,
     Di,
     Ei,
-    Jp,
 
     // Jumps
     Jr(Operand),
+    Jp(Operand),
+    Call,
+    Ret,
+    Reti,
 
     // Arithmetic
     Add(Operand),
     AddHl(Reg16),
+    AddSp,        // Add immediate 8-bit signed value to SP
     Adc(Operand), // add with carry
     Sub(Operand),
     Sbc(Operand), // subtract with carry
     And(Operand),
     Xor(Operand),
     Or(Operand),
-    Cp(Operand),  // compare
-    Cpl(Operand), // Flip bits (xor 0xFF)
+    Cp(Operand), // compare
     Inc(Operand),
     Dec(Operand),
-
-    Daa, // decimal adjust A
 
     // Rotations and shifts
     Rlc(Operand),
@@ -46,6 +45,16 @@ pub enum Inst {
     Bit(u8, Operand),
     Res(u8, Operand),
     Set(u8, Operand),
+
+    // Assorted operations on accumulator or flags
+    Rlca,
+    Rrca,
+    Rla,
+    Rra,
+    Daa, // decimal adjust A
+    Cpl,
+    Scf,
+    Ccf,
 }
 
 #[derive(PartialEq, Debug)]
@@ -55,21 +64,7 @@ pub enum Operand {
     U16,
     R8(Reg8),
     R16(Reg16),
-    ImmR16(Reg16, Offset),
-    A8,
-    A16,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum ArthLogOp {
-    R8(Reg8),
-    R16 {
-        reg: Reg16,
-        offset: Offset,
-        immediate: bool,
-    },
-    A8,
-    A16,
+    ImmR16(Reg16),
 }
 
 #[derive(PartialEq, Debug)]
@@ -93,12 +88,14 @@ pub enum Reg8 {
 
 #[derive(PartialEq, Debug)]
 pub enum Reg16 {
+    Af,
     Bc,
     De,
     Hl,
     HlIncr,
     HlDecr,
     Sp,
+    SpPlusD,
 }
 
 #[derive(PartialEq, Debug)]

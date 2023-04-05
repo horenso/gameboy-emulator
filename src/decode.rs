@@ -16,23 +16,53 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
                 _ => unreachable!(),
             },
             1 if y & 1 == 0 => Inst::Ld(operand_imm16(y >> 1), Operand::U16),
-            1 => Inst::AddHl(reg16(y >> 1)),
+            1 => Inst::AddHl(rp_table(y >> 1)),
             2 => match y {
                 0 => Inst::Ld(Operand::ImmR16(Reg16::Bc), Operand::R8(Reg8::A)),
                 1 => Inst::Ld(Operand::ImmR16(Reg16::De), Operand::R8(Reg8::A)),
                 2 => Inst::Ld(Operand::ImmR16(Reg16::HlIncr), Operand::R8(Reg8::A)),
                 3 => Inst::Ld(Operand::ImmR16(Reg16::HlDecr), Operand::R8(Reg8::A)),
-                4 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::Bc),
-                5 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::De),
-                6 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::HlIncr),
-                7 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::HlDecr),
+                4 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::Bc)),
+                5 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::De)),
+                6 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::HlIncr)),
+                7 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::HlDecr)),
             },
-            _ => unreachable!(),
+            3 if y & 1 == 0 => Inst::Inc(Operand::R16(rp_table(y >> 1))),
+            3 => Inst::Dec(Operand::R16(rp_table(y >> 1))),
+            4 => Inst::Inc(operand(y)),
+            5 => Inst::Dec(operand(y)),
+            6 => Inst::Ld(operand(y), Operand::U8),
+            7 => match y {
+                0 => Inst::Rlca,
+                1 => Inst::Rrca,
+                2 => Inst::Rla,
+                3 => Inst::Rra,
+                4 => Inst::Daa,
+                5 => Inst::Cpl,
+                6 => Inst::Scf,
+                7 => Inst::Ccf,
+                _ => unreachable!(),
+            },
         },
         1 if y == 0 && z == 0 => Inst::Halt,
         1 => Inst::Ld(operand(y), operand(z)),
         2 => arithmetic_logic(y, z),
-        3 => unreachable!(), // TODO
+        3 => match z {
+            0 => match y {
+                0..=3 => Inst::Ret(cond(y)),
+                4 => Inst::Ld(Operand::U8, Operand::R8(Reg8::A)),
+                5 => Inst::AddSp,
+                6 => Inst::Ld(Operand::R16(Reg16::Hl), Operand::R16(Reg16::SpPlusD)),
+            },
+            1 if y & 1 == 0 => Inst::Pop(rp2_table(y >> 1)),
+            1 => match y >> 1 {
+                0 => Inst::Ret,
+                1 => Inst::Reti,
+                2 => Inst::Jp(Operand::R16(Reg16::Hl)),
+                3 => Inst::Ld(Operand::R16(Reg16::Sp), Operand::R16(Reg16::Hl)),
+            },
+            _ => unreachable!(), // TODO
+        },
         _ => unreachable!(),
     }
 }
@@ -61,12 +91,22 @@ fn operand_imm16(code: u8) -> Operand {
     }
 }
 
-fn reg16(code: u8) -> Reg16 {
+fn rp_table(code: u8) -> Reg16 {
     match code {
         0 => Reg16::Bc,
         1 => Reg16::De,
         2 => Reg16::Hl,
         3 => Reg16::Sp,
+        _ => unreachable!(),
+    }
+}
+
+fn rp2_table(code: u8) -> Reg16 {
+    match code {
+        0 => Reg16::Bc,
+        1 => Reg16::De,
+        2 => Reg16::Hl,
+        3 => Reg16::Af,
         _ => unreachable!(),
     }
 }
