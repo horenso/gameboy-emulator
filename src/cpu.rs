@@ -71,23 +71,23 @@ impl Cpu {
 
     fn execute_ld(&mut self) {}
 
-    fn execute_add(&mut self, operand: Reg) {}
+    fn execute_add(&mut self) {}
 
-    fn execute_adc(&mut self, operand: Reg) {}
+    fn execute_adc(&mut self) {}
 
-    fn execute_sub(&mut self, operand: Reg) {}
+    fn execute_sub(&mut self) {}
 
-    fn execute_sbc(&mut self, operand: Reg) {}
+    fn execute_sbc(&mut self) {}
 
-    fn execute_and(&mut self, operand: Reg) {}
+    fn execute_and(&mut self) {}
 
-    fn execute_xor(&mut self, operand: Reg) {}
+    fn execute_xor(&mut self) {}
 
-    fn execute_or(&mut self, operand: Reg) {}
+    fn execute_or(&mut self) {}
 
-    fn execute_cp(&mut self, operand: Reg) {}
+    fn execute_cp(&mut self) {}
 
-    fn execute_cpl(&mut self, operand: Reg) {}
+    fn execute_cpl(&mut self) {}
 
     fn execute_inc(&mut self) {}
 

@@ -71,10 +71,10 @@ pub enum Operand {
 #[derive(PartialEq, Debug)]
 pub enum Cond {
     Always,
-    Nz,
-    Z,
-    Nc,
-    C,
+    NotZero,
+    Zero,
+    NotCarry,
+    Carry,
 }
 
 #[derive(PartialEq, Debug)]
@@ -98,10 +98,4 @@ pub enum Reg16 {
     HlDecr,
     Sp,
     SpPlusD,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum Reg {
-    R8(Reg8),
-    R16(Reg16),
 }
