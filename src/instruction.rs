@@ -60,12 +60,13 @@ pub enum Inst {
 
 #[derive(PartialEq, Debug)]
 pub enum Operand {
-    D8,
-    D16,
-    A8,
-    R8(Reg8),
-    R16(Reg16),
-    ImmR16(Reg16),
+    D8,            // immediate 8-bit data
+    D16,           // immediate 16-bit data
+    A8,            // immediate 8-bit address where 0xFF.. is implied
+    A16,           // immediate 16-bit address
+    R8(Reg8),      // 8-bit register
+    R16(Reg16),    // 16-bit register
+    IndR16(Reg16), // address that is stored the 16-bit register
 }
 
 #[derive(PartialEq, Debug)]

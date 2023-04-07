@@ -4,32 +4,34 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
     let x = opcode >> 6;
     let y = (opcode & 0b00111000) >> 3;
     let z = opcode & 0b00000111;
+    let p = y >> 1;
+    let q = y & 1;
 
     match x {
         0 => match z {
             0 => match y {
                 0 => Inst::NoOp,
-                1 => Inst::Ld(Operand::D8, Operand::R16(Reg16::Sp)),
+                1 => Inst::Ld(Operand::A16, Operand::R16(Reg16::Sp)),
                 2 => Inst::Stop,
                 3 => Inst::Jr(Operand::A8),
                 4..=7 => Inst::Jr(operand_imm16(y - 4)),
                 _ => unreachable!(),
             },
-            1 if y & 1 == 0 => Inst::Ld(operand_imm16(y >> 1), Operand::D16),
-            1 => Inst::AddHl(rp_table(y >> 1)),
+            1 if q == 0 => Inst::Ld(rp_table(p), Operand::D16),
+            1 => Inst::AddHl(rp_table(p)),
             2 => match y {
-                0 => Inst::Ld(Operand::ImmR16(Reg16::Bc), Operand::R8(Reg8::A)),
-                1 => Inst::Ld(Operand::ImmR16(Reg16::De), Operand::R8(Reg8::A)),
-                2 => Inst::Ld(Operand::ImmR16(Reg16::HlIncr), Operand::R8(Reg8::A)),
-                3 => Inst::Ld(Operand::ImmR16(Reg16::HlDecr), Operand::R8(Reg8::A)),
-                4 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::Bc)),
-                5 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::De)),
-                6 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::HlIncr)),
-                7 => Inst::Ld(Operand::R8(Reg8::A), Operand::ImmR16(Reg16::HlDecr)),
+                0 => Inst::Ld(Operand::IndR16(Reg16::Bc), Operand::R8(Reg8::A)),
+                1 => Inst::Ld(Operand::IndR16(Reg16::De), Operand::R8(Reg8::A)),
+                2 => Inst::Ld(Operand::IndR16(Reg16::HlIncr), Operand::R8(Reg8::A)),
+                3 => Inst::Ld(Operand::IndR16(Reg16::HlDecr), Operand::R8(Reg8::A)),
+                4 => Inst::Ld(Operand::R8(Reg8::A), Operand::IndR16(Reg16::Bc)),
+                5 => Inst::Ld(Operand::R8(Reg8::A), Operand::IndR16(Reg16::De)),
+                6 => Inst::Ld(Operand::R8(Reg8::A), Operand::IndR16(Reg16::HlIncr)),
+                7 => Inst::Ld(Operand::R8(Reg8::A), Operand::IndR16(Reg16::HlDecr)),
                 _ => unreachable!(),
             },
-            3 if y & 1 == 0 => Inst::Inc(Operand::R16(rp_table(y >> 1))),
-            3 => Inst::Dec(Operand::R16(rp_table(y >> 1))),
+            3 if q == 0 => Inst::Inc(Operand::R16(rp_table(p))),
+            3 => Inst::Dec(Operand::R16(rp_table(p))),
             4 => Inst::Inc(operand(y)),
             5 => Inst::Dec(operand(y)),
             6 => Inst::Ld(operand(y), Operand::D8),
@@ -58,8 +60,8 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
                 7 => Inst::Ld(Operand::R16(Reg16::Hl), Operand::R16(Reg16::SpPlusD)),
                 _ => unreachable!(),
             },
-            1 if y & 1 == 0 => Inst::Pop(rp2_table(y >> 1)),
-            1 => match y >> 1 {
+            1 if q == 0 => Inst::Pop(rp2_table(p)),
+            1 => match p {
                 0 => Inst::Ret(Cond::Always),
                 1 => Inst::Reti,
                 2 => Inst::Jp(Operand::R16(Reg16::Hl)),
@@ -69,8 +71,8 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
                     4..=7 => Inst::NoOp,
                     _ => unreachable!(),
                 },
-                5 if y & 1 == 0 => Inst::Push(rp2_table(y >> 1)),
-                5 if y >> 1 == 0 => Inst::Call(Cond::Always),
+                5 if q == 0 => Inst::Push(rp2_table(p)),
+                5 if p == 0 => Inst::Call(Cond::Always),
                 5 => Inst::NoOp,
                 6 => arithmetic_logic(y, z, true),
                 7 => Inst::Rst(y * 8),
@@ -90,7 +92,7 @@ fn operand(code: u8) -> Operand {
         3 => Operand::R8(Reg8::E),
         4 => Operand::R8(Reg8::H),
         5 => Operand::R8(Reg8::L),
-        6 => Operand::ImmR16(Reg16::Hl),
+        6 => Operand::IndR16(Reg16::Hl),
         7 => Operand::R8(Reg8::A),
         _ => unreachable!(),
     }
@@ -98,10 +100,10 @@ fn operand(code: u8) -> Operand {
 
 fn operand_imm16(code: u8) -> Operand {
     match code {
-        0 => Operand::ImmR16(Reg16::Bc),
-        1 => Operand::ImmR16(Reg16::De),
-        2 => Operand::ImmR16(Reg16::Hl),
-        3 => Operand::ImmR16(Reg16::Sp),
+        0 => Operand::IndR16(Reg16::Bc),
+        1 => Operand::IndR16(Reg16::De),
+        2 => Operand::IndR16(Reg16::Hl),
+        3 => Operand::IndR16(Reg16::Sp),
         _ => unreachable!(),
     }
 }

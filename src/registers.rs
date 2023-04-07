@@ -1,4 +1,5 @@
 use crate::helper::{combine_to_u16, split_u16};
+use crate::instruction::{Reg16, Reg8};
 
 #[derive(Default)]
 pub struct Registers {
@@ -64,6 +65,15 @@ impl Registers {
 
     pub fn hl(&self) -> u16 {
         combine_to_u16(self.h, self.l)
+    }
+
+    pub fn incr_hl(&mut self) {
+        // TODO: Do this more efficiently maybe
+        self.set_hl(self.hl() + 1);
+    }
+
+    pub fn decr_hl(&mut self) {
+        self.set_hl(self.hl() - 1);
     }
 }
 

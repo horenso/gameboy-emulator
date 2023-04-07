@@ -16,7 +16,7 @@ impl Bus {
     }
 
     // https://gbdev.io/pandocs/Memory_Map.html
-    pub fn read_at_address(&self, address: u16) -> u8 {
+    pub fn read(&self, address: u16) -> u8 {
         match address {
             0x0000..=0x8000 => self.read_from_rom(address),
             0x8001..=0x9fff => {
