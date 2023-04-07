@@ -30,6 +30,10 @@ impl Bus {
         }
     }
 
+    pub fn write(&self, address: u16, data: u8) {
+        println!("Writting to address: {} data: {}", address, data);
+    }
+
     fn read_from_rom(&self, address: u16) -> u8 {
         println!("Reading from ROM");
         self.rom.data[address as usize]

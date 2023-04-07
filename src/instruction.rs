@@ -1,7 +1,8 @@
 #[derive(PartialEq, Debug)]
 pub enum Inst {
     Prefix, // 0xCB is a prefix 2 byte encoded instructions
-    Ld(Operand, Operand),
+    Ld8(Operand, Operand),
+    Ld16(Operand, Operand),
     Push(Reg16),
     Pop(Reg16),
 
@@ -14,7 +15,7 @@ pub enum Inst {
 
     // Jumps
     Jr(Operand),
-    Jp(Operand),
+    Jp(Cond, Operand),
     Call(Cond),
     Ret(Cond),
     Reti, // return from interrupt handler

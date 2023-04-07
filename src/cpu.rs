@@ -3,9 +3,9 @@ use std::rc::Rc;
 use crate::bus::Bus;
 use crate::decode::*;
 // use crate::helper::combine_to_u16;
+use crate::helper::combine_to_u16;
 use crate::instruction::*;
 use crate::registers::Registers;
-use crate::helper::combine_to_u16;
 
 pub struct Cpu {
     regs: Registers,
@@ -25,30 +25,30 @@ impl Cpu {
         self.execute(inst);
     }
 
-    fn read_8bit(&mut self) -> u8 {
+    fn read_next_8bit(&mut self) -> u8 {
         let data = self.bus.read(self.regs.pc);
         self.regs.pc += 1;
         data
     }
 
-    fn read_16bit(&mut self) -> u16 {
-        let high = self.read_8bit(&mut self);
-        let low = self.read_8bit(&mut self);
+    fn read_next_16bit(&mut self) -> u16 {
+        let high = self.read_next_8bit();
+        let low = self.read_next_8bit();
         combine_to_u16(high, low)
     }
 
     fn fetch(&mut self) -> Inst {
-        let fetched = self.read_8bit();
+        let fetched = self.read_next_8bit();
         let mut inst = decode_unprefixed(fetched);
         if inst == Inst::Prefix {
-            let fetched = self.read_8bit();
+            let fetched = self.read_next_8bit();
             inst = decode_prefixed(fetched);
         }
         println!("{:?}", inst);
         inst
     }
 
-    fn get_8bit(&self, reg: Reg8) -> u8 {
+    fn get_reg8(&self, reg: Reg8) -> u8 {
         match reg {
             Reg8::A => self.regs.a,
             Reg8::B => self.regs.b,
@@ -60,7 +60,19 @@ impl Cpu {
         }
     }
 
-    fn get_16bit(&self, reg: Reg16) -> u16 {
+    fn set_reg8(&mut self, reg: Reg8, data: u8) {
+        match reg {
+            Reg8::A => self.regs.a = data,
+            Reg8::B => self.regs.b = data,
+            Reg8::C => self.regs.c = data,
+            Reg8::D => self.regs.d = data,
+            Reg8::E => self.regs.e = data,
+            Reg8::H => self.regs.h = data,
+            Reg8::L => self.regs.l = data,
+        };
+    }
+
+    fn get_reg16(&mut self, reg: Reg16) -> u16 {
         match reg {
             Reg16::Af => self.regs.af(),
             Reg16::Bc => self.regs.bc(),
@@ -70,13 +82,13 @@ impl Cpu {
                 let hl = self.regs.hl();
                 self.regs.incr_hl();
                 hl
-                },
+            }
             Reg16::HlDecr => {
                 let hl = self.regs.hl();
                 self.regs.decr_hl();
                 hl
             }
-            Reg16::Sp => self.regs.sp(),
+            Reg16::Sp => self.regs.sp,
             _ => unreachable!(),
         }
     }
@@ -85,19 +97,47 @@ impl Cpu {
         let data8: u8 = 0;
         let data16: u16 = 0;
         match inst {
-            Inst::Ld(o1, o2) => self.execute_ld(o1, o2),
+            Inst::Ld8(dest, source) => self.ld8(dest, source),
+            Inst::Ld16(dest, source) => self.ld16(dest, source),
             _ => todo!("Not implemented!"),
         };
     }
 
-    fn execute_ld(&mut self, dest: Operand, source: Operand) {
-        match source {
-            Operand::D8 => {
-                self.read_8bit(),
-            },
-            Operand::R8(reg) => self.regs.get_8bit(reg),
-        }
+    fn ld8(&mut self, dest: Operand, source: Operand) {
+        let data = match source {
+            Operand::D8 => self.read_next_8bit(),
+            Operand::A8 => {
+                let addr = combine_to_u16(0xFF, self.read_next_8bit());
+                self.bus.read(addr)
+            }
+            Operand::IndR16(reg16) => {
+                let addr = self.get_reg16(reg16);
+                self.bus.read(addr)
+            }
+            Operand::R8(reg8) => self.get_reg8(reg8),
+            _ => unreachable!(),
+        };
+        match dest {
+            Operand::A8 => {
+                let addr = combine_to_u16(0xFF, self.read_next_8bit());
+                self.bus.write(addr, data);
+            }
+            Operand::A16 => {
+                let addr = self.read_next_16bit();
+                self.bus.write(addr, data);
+            }
+            Operand::IndR16(reg16) => {
+                let addr = self.get_reg16(reg16);
+                self.bus.write(addr, data);
+            }
+            Operand::R8(reg8) => {
+                self.set_reg8(reg8, data);
+            }
+            _ => unreachable!(),
+        };
+    }
 
+    fn ld16(&mut self, dest: Operand, source: Operand) {}
 
     fn execute_push(reg: Reg16) {}
 

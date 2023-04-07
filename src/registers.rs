@@ -1,5 +1,4 @@
 use crate::helper::{combine_to_u16, split_u16};
-use crate::instruction::{Reg16, Reg8};
 
 #[derive(Default)]
 pub struct Registers {
