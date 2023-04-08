@@ -44,7 +44,7 @@ impl Cpu {
             let fetched = self.read_next_8bit();
             inst = decode_prefixed(fetched);
         }
-        println!("Fetched instruction: {:?}", inst);
+        // println!("Fetched instruction: {:?}", inst);
         inst
     }
 
@@ -103,16 +103,48 @@ impl Cpu {
         }
     }
 
+    fn check_cond(&self, cond: Cond) -> bool {
+        match cond {
+            Cond::Always => true,
+            Cond::Zero => self.regs.zero_flag(),
+            Cond::NotZero => !(self.regs.zero_flag()),
+            Cond::Carry => self.regs.carry_flag(),
+            Cond::NotCarry => !(self.regs.carry_flag()),
+        }
+    }
+
+    pub fn debug_print(&self) {
+        let p0 = self.bus.read(self.regs.pc);
+        let p1 = self.bus.read(self.regs.pc + 1);
+        let p2 = self.bus.read(self.regs.pc + 2);
+        let p3 = self.bus.read(self.regs.pc + 3);
+        println!("A:{:X} F:{:X} B:{:X} C:{:X} D:{:X} E:{:X} H:{:X} L:{:X} SP:{:X} PC:{:X} PCMEM:{:X},{:X},{:X},{:X}",
+            self.regs.a,
+            self.regs.f,
+            self.regs.b,
+            self.regs.c,
+            self.regs.d,
+            self.regs.e,
+            self.regs.h,
+            self.regs.l,
+            self.regs.sp,
+            self.regs.pc,
+            p0, p1, p2, p3);
+    }
+
     pub fn execute(&mut self, inst: Inst) {
         match inst {
             Inst::NoOp => (),
             Inst::Ld8(dest, source) => self.ld8(dest, source),
             Inst::Ld16(dest, source) => self.ld16(dest, source),
+            Inst::Jr(cond) => self.jr(cond),
+            Inst::Jp(cond, dest) => self.jp(cond, dest),
             _ => {
                 println!("Instruction {:?} not implemented!", inst);
                 todo!();
             }
         };
+        self.debug_print();
     }
 
     fn ld8(&mut self, dest: Operand, source: Operand) {
@@ -175,7 +207,23 @@ impl Cpu {
         };
     }
 
-    fn execute_push(reg: Reg16) {}
+    fn jr(&mut self, cond: Cond) {
+        if !self.check_cond(cond) {
+            return;
+        }
+        let data = self.read_next_8bit() as i16;
+        self.regs.sp = (self.regs.sp as i16).wrapping_add(data) as u16;
+    }
 
-    fn execute_pop(reg: Reg16) {}
+    fn jp(&mut self, cond: Cond, dest: Operand) {
+        if !self.check_cond(cond) {
+            return;
+        }
+        let addr = match dest {
+            Operand::A16 => self.read_next_16bit(),
+            Operand::R16(reg16) => self.get_reg16(reg16),
+            _ => unreachable!(),
+        };
+        self.regs.sp = addr;
+    }
 }

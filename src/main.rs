@@ -67,7 +67,7 @@ fn main() -> Result<(), String> {
         // Executing cpu instructions
         cpu.fetch_and_execute();
 
-        sleep(Duration::from_millis(400));
+        // sleep(Duration::from_millis(400));
     }
 
     Ok(())

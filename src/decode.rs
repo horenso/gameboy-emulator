@@ -13,8 +13,8 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
                 0 => Inst::NoOp,
                 1 => Inst::Ld16(Operand::A16, Operand::R16(Reg16::Sp)),
                 2 => Inst::Stop,
-                3 => Inst::Jr(Operand::A8),
-                4..=7 => Inst::Jr(operand_imm16(y - 4)),
+                3 => Inst::Jr(Cond::Always),
+                4..=7 => Inst::Jr(cond(y - 4)),
                 _ => unreachable!(),
             },
             1 if q == 0 => Inst::Ld16(Operand::R16(rp_table(p)), Operand::D16),
@@ -170,7 +170,6 @@ fn arithmetic_logic(y: u8, z: u8, immediate: bool) -> Inst {
 }
 
 pub fn decode_prefixed(opcode: u8) -> Inst {
-    let z = opcode & 0b00000111;
     let y = (opcode & 0b00111000) >> 3;
     match opcode {
         0x00..=0x07 => Inst::Rlc(operand(y)),

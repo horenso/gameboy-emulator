@@ -23,6 +23,7 @@ impl Bus {
                 let v_ram_address = (address - 0x8001) as usize;
                 self.v_ram[v_ram_address]
             }
+            0xFF44 => 0x90, // TODO: Remove this, this is for Gameboy Doctor
             _ => {
                 println!("Access to {:#x} not implemented", address);
                 panic!();
@@ -31,11 +32,11 @@ impl Bus {
     }
 
     pub fn write(&self, address: u16, data: u8) {
-        println!("Writting to address: {:#x} data: {:#x}", address, data);
+        // println!("Writting to address: {:#x} data: {:#x}", address, data);
     }
 
     fn read_from_rom(&self, address: u16) -> u8 {
-        println!("Reading from ROM at {:#x}", address);
+        // println!("Reading from ROM at {:#x}", address);
         self.rom.data[address as usize]
     }
 }

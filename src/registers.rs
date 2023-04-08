@@ -1,5 +1,12 @@
 use crate::helper::{combine_to_u16, split_u16};
 
+pub enum Flag {
+    Zero = 0b10000000,
+    Subtraction = 0b01000000,
+    HalfCarry = 0b00100000,
+    Carry = 0b00010000,
+}
+
 #[derive(Default)]
 pub struct Registers {
     pub a: u8,
@@ -73,6 +80,21 @@ impl Registers {
 
     pub fn decr_hl(&mut self) {
         self.set_hl(self.hl() - 1);
+    }
+
+    pub fn zero_flag(&self) -> bool {
+        self.f & Flag::Zero as u8 == 0
+    }
+
+    pub fn subtraction_flag(&self) -> bool {
+        self.f & Flag::Subtraction as u8 == 0
+    }
+
+    pub fn half_carry_flag(&self) -> bool {
+        self.f & Flag::HalfCarry as u8 == 0
+    }
+    pub fn carry_flag(&self) -> bool {
+        self.f & Flag::Carry as u8 == 0
     }
 }
 
