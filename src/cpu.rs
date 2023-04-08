@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::Write;
 use std::rc::Rc;
 
 use crate::bus::Bus;
@@ -44,7 +46,7 @@ impl Cpu {
             let fetched = self.read_next_8bit();
             inst = decode_prefixed(fetched);
         }
-        // println!("Fetched instruction: {:?}", inst);
+        println!("Fetched instruction: {:?}", inst);
         inst
     }
 
@@ -113,12 +115,12 @@ impl Cpu {
         }
     }
 
-    pub fn debug_print(&self) {
+    pub fn debug_print(&self, file: &mut File) {
         let p0 = self.bus.read(self.regs.pc);
         let p1 = self.bus.read(self.regs.pc + 1);
         let p2 = self.bus.read(self.regs.pc + 2);
         let p3 = self.bus.read(self.regs.pc + 3);
-        println!("A:{:X} F:{:X} B:{:X} C:{:X} D:{:X} E:{:X} H:{:X} L:{:X} SP:{:X} PC:{:X} PCMEM:{:X},{:X},{:X},{:X}",
+        writeln!(file, "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:02X} PC:{:02X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
             self.regs.a,
             self.regs.f,
             self.regs.b,
@@ -129,7 +131,7 @@ impl Cpu {
             self.regs.l,
             self.regs.sp,
             self.regs.pc,
-            p0, p1, p2, p3);
+            p0, p1, p2, p3).unwrap();
     }
 
     pub fn execute(&mut self, inst: Inst) {
@@ -144,7 +146,6 @@ impl Cpu {
                 todo!();
             }
         };
-        self.debug_print();
     }
 
     fn ld8(&mut self, dest: Operand, source: Operand) {
