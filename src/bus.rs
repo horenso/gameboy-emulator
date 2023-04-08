@@ -24,18 +24,18 @@ impl Bus {
                 self.v_ram[v_ram_address]
             }
             _ => {
-                println!("Access to {} not implemented", address);
+                println!("Access to {:#x} not implemented", address);
                 panic!();
             }
         }
     }
 
     pub fn write(&self, address: u16, data: u8) {
-        println!("Writting to address: {} data: {}", address, data);
+        println!("Writting to address: {:#x} data: {:#x}", address, data);
     }
 
     fn read_from_rom(&self, address: u16) -> u8 {
-        println!("Reading from ROM");
+        println!("Reading from ROM at {:#x}", address);
         self.rom.data[address as usize]
     }
 }

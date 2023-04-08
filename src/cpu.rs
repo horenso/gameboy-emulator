@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::bus::Bus;
 use crate::decode::*;
 // use crate::helper::combine_to_u16;
-use crate::helper::combine_to_u16;
+use crate::helper::{combine_to_u16, split_u16};
 use crate::instruction::*;
 use crate::registers::Registers;
 
@@ -44,7 +44,7 @@ impl Cpu {
             let fetched = self.read_next_8bit();
             inst = decode_prefixed(fetched);
         }
-        println!("{:?}", inst);
+        println!("Fetched instruction: {:?}", inst);
         inst
     }
 
@@ -72,6 +72,16 @@ impl Cpu {
         };
     }
 
+    fn set_reg16(&mut self, reg: Reg16, data: u16) {
+        match reg {
+            Reg16::Af => self.regs.set_af(data),
+            Reg16::Bc => self.regs.set_bc(data),
+            Reg16::De => self.regs.set_de(data),
+            Reg16::Hl => self.regs.set_hl(data),
+            _ => unreachable!(),
+        };
+    }
+
     fn get_reg16(&mut self, reg: Reg16) -> u16 {
         match reg {
             Reg16::Af => self.regs.af(),
@@ -94,12 +104,14 @@ impl Cpu {
     }
 
     pub fn execute(&mut self, inst: Inst) {
-        let data8: u8 = 0;
-        let data16: u16 = 0;
         match inst {
+            Inst::NoOp => (),
             Inst::Ld8(dest, source) => self.ld8(dest, source),
             Inst::Ld16(dest, source) => self.ld16(dest, source),
-            _ => todo!("Not implemented!"),
+            _ => {
+                println!("Instruction {:?} not implemented!", inst);
+                todo!();
+            }
         };
     }
 
@@ -137,7 +149,31 @@ impl Cpu {
         };
     }
 
-    fn ld16(&mut self, dest: Operand, source: Operand) {}
+    fn ld16(&mut self, dest: Operand, source: Operand) {
+        let data = match source {
+            Operand::D16 => self.read_next_16bit(),
+            Operand::R16(reg16) => self.get_reg16(reg16),
+            _ => unreachable!(),
+        };
+        match dest {
+            Operand::A8 => {
+                let addr = combine_to_u16(0xFF, self.read_next_8bit());
+                let (high, low) = split_u16(data);
+                self.bus.write(addr, low);
+                self.bus.write(addr + 1, high);
+            }
+            Operand::A16 => {
+                let addr = self.read_next_16bit();
+                let (high, low) = split_u16(data);
+                self.bus.write(addr, low);
+                self.bus.write(addr + 1, high);
+            }
+            Operand::R16(reg16) => {
+                self.set_reg16(reg16, data);
+            }
+            _ => unreachable!(),
+        };
+    }
 
     fn execute_push(reg: Reg16) {}
 

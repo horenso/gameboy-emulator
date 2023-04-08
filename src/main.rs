@@ -59,7 +59,7 @@ fn main() -> Result<(), String> {
                 } => {
                     break 'main_loop;
                 }
-                _ => {}
+                _ => (),
             }
         }
         canvas.present();
