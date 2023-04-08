@@ -1,6 +1,12 @@
-Original Gameboy Emulator in Rust with SDL2.
+# Original Gameboy Emulator in Rust with SDL2.
 
-References:
+To run it you need `libsdl2` and `Rust`.
+
+```
+cargo run path/to/cartridge
+```
+
+# References
 
 https://gbdev.io/pandocs/
 
