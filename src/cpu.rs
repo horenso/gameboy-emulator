@@ -105,6 +105,16 @@ impl Cpu {
         }
     }
 
+    fn load_indr(&mut self, reg: Reg16) -> u8 {
+        let addr = self.get_reg16(reg);
+        self.bus.read(addr)
+    }
+
+    fn save_indr(&mut self, reg: Reg16, data: u8) {
+        let addr = self.get_reg16(reg);
+        self.bus.write(addr, data);
+    }
+
     fn check_cond(&self, cond: Cond) -> bool {
         match cond {
             Cond::Always => true,
@@ -137,10 +147,26 @@ impl Cpu {
     pub fn execute(&mut self, inst: Inst) {
         match inst {
             Inst::NoOp => (),
+
             Inst::Ld8(dest, source) => self.ld8(dest, source),
             Inst::Ld16(dest, source) => self.ld16(dest, source),
+
             Inst::Jr(cond) => self.jr(cond),
             Inst::Jp(cond, dest) => self.jp(cond, dest),
+
+            Inst::Add(operand) => self.add(operand),
+            Inst::AddHl(reg16) => self.add_hl(reg16),
+            Inst::AddSp => self.add_sp(),
+            Inst::Adc(operand) => self.adc(operand),
+            Inst::Sub(operand) => self.sub(operand),
+            Inst::Sbc(operand) => self.sbc(operand),
+            Inst::And(operand) => self.and(operand),
+            Inst::Xor(operand) => self.xor(operand),
+            Inst::Or(operand) => self.or(operand),
+            Inst::Cp(operand) => self.cp(operand),
+            Inst::Inc(operand) => self.inc(operand),
+            Inst::Dec(operand) => self.dec(operand),
+
             _ => {
                 println!("Instruction {:?} not implemented!", inst);
                 todo!();
@@ -155,10 +181,7 @@ impl Cpu {
                 let addr = combine_to_u16(0xFF, self.read_next_8bit());
                 self.bus.read(addr)
             }
-            Operand::IndR16(reg16) => {
-                let addr = self.get_reg16(reg16);
-                self.bus.read(addr)
-            }
+            Operand::IndR16(reg16) => self.load_indr(reg16),
             Operand::R8(reg8) => self.get_reg8(reg8),
             _ => unreachable!(),
         };
@@ -171,10 +194,7 @@ impl Cpu {
                 let addr = self.read_next_16bit();
                 self.bus.write(addr, data);
             }
-            Operand::IndR16(reg16) => {
-                let addr = self.get_reg16(reg16);
-                self.bus.write(addr, data);
-            }
+            Operand::IndR16(reg16) => self.save_indr(reg16, data),
             Operand::R8(reg8) => {
                 self.set_reg8(reg8, data);
             }
@@ -201,9 +221,7 @@ impl Cpu {
                 self.bus.write(addr, low);
                 self.bus.write(addr + 1, high);
             }
-            Operand::R16(reg16) => {
-                self.set_reg16(reg16, data);
-            }
+            Operand::R16(reg16) => self.set_reg16(reg16, data),
             _ => unreachable!(),
         };
     }
@@ -227,4 +245,44 @@ impl Cpu {
         };
         self.regs.sp = addr;
     }
+
+    fn add(&mut self, operand: Operand) {
+        let data = match operand {
+            Operand::D8 => self.read_next_8bit(),
+            Operand::R8(reg8) => self.get_reg8(reg8),
+            Operand::IndR16(reg16) => self.load_indr(reg16),
+            _ => unreachable!(),
+        };
+        let sum: u16 = self.regs.a as u16 + data as u16;
+        let (result, carry) = split_u16(sum);
+        self.regs.a = result;
+        self.regs.set_flags(
+            result == 0,
+            false,
+            carry & 0b0000_1000 == 0,
+            carry & 0b1000_0000 == 0,
+        );
+    }
+
+    fn add_hl(&mut self, reg: Reg16) {}
+
+    fn add_sp(&mut self) {}
+
+    fn adc(&mut self, operand: Operand) {}
+
+    fn sub(&mut self, operand: Operand) {}
+
+    fn sbc(&mut self, operand: Operand) {}
+
+    fn and(&mut self, operand: Operand) {}
+
+    fn xor(&mut self, operand: Operand) {}
+
+    fn or(&mut self, operand: Operand) {}
+
+    fn cp(&mut self, operand: Operand) {}
+
+    fn inc(&mut self, operand: Operand) {}
+
+    fn dec(&mut self, operand: Operand) {}
 }

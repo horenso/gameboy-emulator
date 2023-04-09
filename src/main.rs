@@ -16,7 +16,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use std::env::args;
-use std::fs::{create_dir, File};
+use std::fs::File;
 use std::path::Path;
 use std::rc::Rc;
 use std::thread::sleep;
