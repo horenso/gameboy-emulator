@@ -25,6 +25,7 @@ impl Bus {
             }
             0xFF44 => 0x90, // TODO: Remove this, this is for Gameboy Doctor
             _ => {
+                return 0; // TODO: hack
                 println!("Access to {:#x} not implemented", address);
                 panic!();
             }

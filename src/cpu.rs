@@ -153,8 +153,12 @@ impl Cpu {
 
             Inst::Jr(cond) => self.jr(cond),
             Inst::Jp(cond, dest) => self.jp(cond, dest),
+            Inst::Call(cond) => self.call(cond),
+            Inst::Ret(cond) => self.ret(cond),
+            Inst::Reti => self.reti(),
+            Inst::Rst(u8) => self.rst(),
 
-            Inst::Add(operand) => self.add(operand),
+            Inst::Add(operand) => self.add_a(operand),
             Inst::AddHl(reg16) => self.add_hl(reg16),
             Inst::AddSp => self.add_sp(),
             Inst::Adc(operand) => self.adc(operand),
@@ -246,7 +250,7 @@ impl Cpu {
         self.regs.sp = addr;
     }
 
-    fn add(&mut self, operand: Operand) {
+    fn add_a(&mut self, operand: Operand) {
         let data = match operand {
             Operand::D8 => self.read_next_8bit(),
             Operand::R8(reg8) => self.get_reg8(reg8),
@@ -256,15 +260,17 @@ impl Cpu {
         let sum: u16 = self.regs.a as u16 + data as u16;
         let (result, carry) = split_u16(sum);
         self.regs.a = result;
-        self.regs.set_flags(
-            result == 0,
-            false,
-            carry & 0b0000_1000 == 0,
-            carry & 0b1000_0000 == 0,
-        );
+        self.regs.set_zero(result == 0);
+        self.regs.set_subtract(false);
+        self.regs.set_half_carry(carry & 0b0000_1000 == 0);
+        self.regs.set_carry(carry & 0b1000_0000 == 0);
     }
 
-    fn add_hl(&mut self, reg: Reg16) {}
+    fn add_hl(&mut self, reg: Reg16) {
+        let data = self.get_reg16(reg);
+        let sum = self.regs.hl() + data;
+        // TODO: Set flags
+    }
 
     fn add_sp(&mut self) {}
 
@@ -285,4 +291,17 @@ impl Cpu {
     fn inc(&mut self, operand: Operand) {}
 
     fn dec(&mut self, operand: Operand) {}
+
+    fn call(&mut self, cond: Cond) {
+        if !self.check_cond(cond) {
+            return;
+        }
+        // TODO: call logic
+    }
+
+    fn ret(&mut self, cond: Cond) {}
+
+    fn reti(&mut self) {}
+
+    fn rst(&mut self) {}
 }

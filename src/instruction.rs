@@ -16,10 +16,10 @@ pub enum Inst {
     // Jumps
     Jp(Cond, Operand), // absolute jump
     Jr(Cond),          // relatve jump
-    Call(Cond),
-    Ret(Cond),
-    Reti, // return from interrupt handler
-    Rst(u8),
+    Call(Cond),        // call a function
+    Ret(Cond),         // return if condition
+    Reti,              // return and enable interrupts
+    Rst(u8),           // shorthand call to specific locations
 
     // Arithmetic
     Add(Operand),
