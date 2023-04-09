@@ -1,10 +1,6 @@
 #[derive(PartialEq, Debug)]
 pub enum Inst {
     Prefix, // 0xCB is a prefix for 2 byte instructions
-    Ld8(Operand, Operand),
-    Ld16(Operand, Operand),
-    Push(Reg16),
-    Pop(Reg16),
 
     // Control
     NoOp,
@@ -12,6 +8,12 @@ pub enum Inst {
     Stop,
     Di,
     Ei,
+
+    // Load and stack operations
+    Ld8(Operand, Operand),
+    Ld16(Operand, Operand),
+    Push(Reg16),
+    Pop(Reg16),
 
     // Jumps
     Jp(Cond, Operand), // absolute jump

@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use crate::bus::Bus;
 use crate::decode::*;
-// use crate::helper::combine_to_u16;
 use crate::helper::{combine_to_u16, split_u16};
 use crate::instruction::*;
 use crate::registers::Registers;
@@ -12,6 +11,7 @@ use crate::registers::Registers;
 pub struct Cpu {
     regs: Registers,
     bus: Rc<Bus>,
+    counter: u64, // count number of executed instructions
 }
 
 impl Cpu {
@@ -19,6 +19,7 @@ impl Cpu {
         Cpu {
             regs: Registers::new(),
             bus,
+            counter: 0,
         }
     }
 
@@ -46,7 +47,6 @@ impl Cpu {
             let fetched = self.read_next_8bit();
             inst = decode_prefixed(fetched);
         }
-        println!("Fetched instruction: {:?}", inst);
         inst
     }
 
@@ -145,18 +145,28 @@ impl Cpu {
     }
 
     pub fn execute(&mut self, inst: Inst) {
+        self.counter += 1;
+        println!("Executing instruction: {:?} {}", inst, self.counter);
         match inst {
+            Inst::Prefix => unreachable!(),
+
             Inst::NoOp => (),
+            Inst::Halt => self.halt(),
+            Inst::Stop => self.stop(),
+            Inst::Di => self.di(),
+            Inst::Ei => self.ei(),
 
             Inst::Ld8(dest, source) => self.ld8(dest, source),
             Inst::Ld16(dest, source) => self.ld16(dest, source),
+            Inst::Push(reg16) => self.push(reg16),
+            Inst::Pop(reg16) => self.pop(reg16),
 
             Inst::Jr(cond) => self.jr(cond),
             Inst::Jp(cond, dest) => self.jp(cond, dest),
             Inst::Call(cond) => self.call(cond),
             Inst::Ret(cond) => self.ret(cond),
             Inst::Reti => self.reti(),
-            Inst::Rst(u8) => self.rst(),
+            Inst::Rst(amount) => self.rst(amount),
 
             Inst::Add(operand) => self.add_a(operand),
             Inst::AddHl(reg16) => self.add_hl(reg16),
@@ -171,12 +181,36 @@ impl Cpu {
             Inst::Inc(operand) => self.inc(operand),
             Inst::Dec(operand) => self.dec(operand),
 
-            _ => {
-                println!("Instruction {:?} not implemented!", inst);
-                todo!();
-            }
+            Inst::Rlc(operand) => self.rlc(operand),
+            Inst::Rrc(operand) => self.rrc(operand),
+            Inst::Rl(operand) => self.rl(operand),
+            Inst::Rr(operand) => self.rr(operand),
+            Inst::Sla(operand) => self.sla(operand),
+            Inst::Sra(operand) => self.sra(operand),
+            Inst::Swap(operand) => self.swap(operand),
+            Inst::Srl(operand) => self.srl(operand),
+            Inst::Bit(amount, operand) => self.bit(amount, operand),
+            Inst::Res(amount, operand) => self.res(amount, operand),
+            Inst::Set(amount, operand) => self.set(amount, operand),
+
+            Inst::Rlca => self.rlca(),
+            Inst::Rrca => self.rrca(),
+            Inst::Rla => self.rla(),
+            Inst::Rra => self.rra(),
+            Inst::Daa => self.daa(),
+            Inst::Cpl => self.cpl(),
+            Inst::Scf => self.scf(),
+            Inst::Ccf => self.ccf(),
         };
     }
+
+    fn halt(&mut self) {}
+
+    fn stop(&mut self) {}
+
+    fn di(&mut self) {}
+
+    fn ei(&mut self) {}
 
     fn ld8(&mut self, dest: Operand, source: Operand) {
         let data = match source {
@@ -230,6 +264,10 @@ impl Cpu {
         };
     }
 
+    fn push(&mut self, reg: Reg16) {}
+
+    fn pop(&mut self, reg: Reg16) {}
+
     fn jr(&mut self, cond: Cond) {
         if !self.check_cond(cond) {
             return;
@@ -249,6 +287,19 @@ impl Cpu {
         };
         self.regs.sp = addr;
     }
+
+    fn call(&mut self, cond: Cond) {
+        if !self.check_cond(cond) {
+            return;
+        }
+        // TODO: call logic
+    }
+
+    fn ret(&mut self, cond: Cond) {}
+
+    fn reti(&mut self) {}
+
+    fn rst(&mut self, amount: u8) {}
 
     fn add_a(&mut self, operand: Operand) {
         let data = match operand {
@@ -292,16 +343,41 @@ impl Cpu {
 
     fn dec(&mut self, operand: Operand) {}
 
-    fn call(&mut self, cond: Cond) {
-        if !self.check_cond(cond) {
-            return;
-        }
-        // TODO: call logic
-    }
+    fn rlc(&mut self, operand: Operand) {}
 
-    fn ret(&mut self, cond: Cond) {}
+    fn rrc(&mut self, operand: Operand) {}
 
-    fn reti(&mut self) {}
+    fn rl(&mut self, operand: Operand) {}
 
-    fn rst(&mut self) {}
+    fn rr(&mut self, operand: Operand) {}
+
+    fn sla(&mut self, operand: Operand) {}
+
+    fn sra(&mut self, operand: Operand) {}
+
+    fn swap(&mut self, operand: Operand) {}
+
+    fn srl(&mut self, operand: Operand) {}
+
+    fn bit(&mut self, amount: u8, operand: Operand) {}
+
+    fn res(&mut self, amount: u8, operand: Operand) {}
+
+    fn set(&mut self, amount: u8, operand: Operand) {}
+
+    fn rlca(&mut self) {}
+
+    fn rrca(&mut self) {}
+
+    fn rla(&mut self) {}
+
+    fn rra(&mut self) {}
+
+    fn daa(&mut self) {}
+
+    fn cpl(&mut self) {}
+
+    fn scf(&mut self) {}
+
+    fn ccf(&mut self) {}
 }
