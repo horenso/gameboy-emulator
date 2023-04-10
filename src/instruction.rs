@@ -34,8 +34,10 @@ pub enum Inst {
     Xor(Operand),
     Or(Operand),
     Cp(Operand), // compare
-    Inc(Operand),
-    Dec(Operand),
+    Inc8(Operand),
+    Inc16(Reg16),
+    Dec8(Operand),
+    Dec16(Reg16),
 
     // Rotations and shifts
     Rlc(Operand),

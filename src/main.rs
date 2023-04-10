@@ -17,6 +17,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use std::env::args;
 use std::fs::File;
+use std::io::{self, Stdout};
 use std::path::Path;
 use std::rc::Rc;
 use std::thread::sleep;
@@ -57,6 +58,8 @@ fn main() -> Result<(), String> {
     canvas.clear();
     canvas.present();
     let mut event_pump = sdl_context.event_pump()?;
+
+    cpu.debug_print(&mut debug_file);
     'main_loop: loop {
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
@@ -78,7 +81,7 @@ fn main() -> Result<(), String> {
         cpu.fetch_and_execute();
         cpu.debug_print(&mut debug_file);
 
-        // sleep(Duration::from_millis(400));
+        sleep(Duration::from_millis(200));
     }
 
     Ok(())

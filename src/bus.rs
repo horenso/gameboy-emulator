@@ -17,6 +17,7 @@ impl Bus {
 
     // https://gbdev.io/pandocs/Memory_Map.html
     pub fn read(&self, address: u16) -> u8 {
+        println!("Reading bus at {:#x}", address);
         match address {
             0x0000..=0x8000 => self.read_from_rom(address),
             0x8001..=0x9fff => {
@@ -33,11 +34,10 @@ impl Bus {
     }
 
     pub fn write(&self, address: u16, data: u8) {
-        // println!("Writting to address: {:#x} data: {:#x}", address, data);
+        println!("Writting to address: {:#x} data: {:#x}", address, data);
     }
 
     fn read_from_rom(&self, address: u16) -> u8 {
-        // println!("Reading from ROM at {:#x}", address);
-        self.rom.data[address as usize]
+        self.rom.read(address as usize)
     }
 }

@@ -11,4 +11,13 @@ impl Cartridge {
         file.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
         Ok(Cartridge { data: buffer })
     }
+
+    pub fn read(&self, index: usize) -> u8 {
+        if index < self.data.len() {
+            self.data[index]
+        } else {
+            println!("Reading outside of cartridge at {}!", index);
+            0
+        }
+    }
 }

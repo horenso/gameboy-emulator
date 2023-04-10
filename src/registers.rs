@@ -1,10 +1,10 @@
 use crate::helper::{combine_to_u16, split_u16};
 
 pub enum Flag {
-    Zero = 0b10000000,
-    Subtraction = 0b01000000,
-    HalfCarry = 0b00100000,
-    Carry = 0b00010000,
+    Zero = 0b1000_0000,
+    Subtraction = 0b0100_0000,
+    HalfCarry = 0b0010_0000,
+    Carry = 0b0001_0000,
 }
 
 #[derive(Default)]
@@ -75,50 +75,58 @@ impl Registers {
 
     pub fn incr_hl(&mut self) {
         // TODO: Do this more efficiently maybe
-        self.set_hl(self.hl() + 1);
+        self.set_hl(self.hl().wrapping_add(1));
     }
 
     pub fn decr_hl(&mut self) {
-        self.set_hl(self.hl() - 1);
+        self.set_hl(self.hl().wrapping_sub(1));
     }
 
     pub fn zero_flag(&self) -> bool {
-        self.f & Flag::Zero as u8 == 0
+        self.f & Flag::Zero as u8 != 0
     }
 
     pub fn subtraction_flag(&self) -> bool {
-        self.f & Flag::Subtraction as u8 == 0
+        self.f & Flag::Subtraction as u8 != 0
     }
 
     pub fn half_carry_flag(&self) -> bool {
-        self.f & Flag::HalfCarry as u8 == 0
+        self.f & Flag::HalfCarry as u8 != 0
     }
 
     pub fn carry_flag(&self) -> bool {
-        self.f & Flag::Carry as u8 == 0
+        self.f & Flag::Carry as u8 != 0
     }
 
     pub fn set_zero(&mut self, zero: bool) {
         if zero {
             self.f |= Flag::Zero as u8;
+        } else {
+            self.f &= !(Flag::Zero as u8);
         }
     }
 
     pub fn set_subtract(&mut self, subtract: bool) {
         if subtract {
             self.f |= Flag::Subtraction as u8;
+        } else {
+            self.f &= !(Flag::Subtraction as u8);
         }
     }
 
     pub fn set_half_carry(&mut self, half_carry: bool) {
         if half_carry {
             self.f |= Flag::HalfCarry as u8;
+        } else {
+            self.f &= !(Flag::HalfCarry as u8);
         }
     }
 
     pub fn set_carry(&mut self, carry: bool) {
         if carry {
             self.f |= Flag::Carry as u8;
+        } else {
+            self.f &= !(Flag::Carry as u8);
         }
     }
 }
