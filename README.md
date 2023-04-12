@@ -6,6 +6,10 @@ To run it you need `libsdl2` and `Rust`.
 cargo run path/to/cartridge
 ```
 
+# Test
+1. Put [test roms](https://github.com/retrio/gb-test-roms/tree/master/cpu_instrs/individual) into `cartridges/`
+2. `./test.sh`
+
 # References
 
 https://gbdev.io/pandocs/

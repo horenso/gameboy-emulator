@@ -19,7 +19,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["./cartridges/test.txt"],
+            "args": ["./cartridges/01-special.gb"],
             "cwd": "${workspaceFolder}"
         },
         {

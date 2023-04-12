@@ -66,7 +66,7 @@ impl Bus {
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
-        println!("Writing to address: {:#x} data: {:#x}", address, data);
+        // println!("Writing to address: {:#x} data: {:#x}", address, data);
         match address {
             CART_START..=CART_END => (),
             V_RAM_START..=V_RAM_END => {

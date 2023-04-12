@@ -145,8 +145,7 @@ impl Cpu {
             concat!(
                 "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} ",
                 "SP:{:04X} PC:{:04X} ",
-                "PCMEM:{:02X},{:02X},{:02X},{:02X} ",
-                "Stack:{:02X},{:02X},{:02X}"
+                "PCMEM:{:02X},{:02X},{:02X},{:02X}",
             ),
             self.regs.a,
             self.regs.f,
@@ -162,9 +161,6 @@ impl Cpu {
             p1,
             p2,
             p3,
-            self.bus.read(self.regs.sp),
-            self.bus.read(self.regs.sp - 1),
-            self.bus.read(self.regs.sp - 2),
         )
         .unwrap();
     }
@@ -335,8 +331,8 @@ impl Cpu {
     }
 
     fn call(&mut self, cond: Cond) {
+        let new_address = self.read_next_16bit();
         if self.check_cond(cond) {
-            let new_address = self.read_next_16bit();
             self.push(Reg16::Pc);
             self.regs.pc = new_address;
         }
@@ -353,29 +349,30 @@ impl Cpu {
     fn rst(&mut self, amount: u8) {}
 
     fn add_a(&mut self, operand: Operand, with_carry: bool) {
-        let data = self.get_8bit_operand(&operand);
-        let mut sum = self.regs.a as u16 + data as u16;
+        let left = self.get_8bit_operand(&operand) as u16;
+        let right = self.regs.a as u16;
+        let mut sum = left + right;
         if with_carry && self.regs.carry_flag() {
             sum += 1;
         };
-        let (result, carry) = split_u16(sum);
+        let (carry, result) = split_u16(sum);
         self.regs.a = result;
         self.regs.set_zero(result == 0);
         self.regs.set_subtract(false);
-        self.regs.set_half_carry(carry & (1 << 3) == 0);
-        self.regs.set_carry(carry & (1 << 7) == 0);
+        self.regs.set_half_carry((left & 0xF) + (right & 0xF) > 0xF);
+        self.regs.set_carry(carry > 0);
     }
 
     fn add_hl(&mut self, reg: Reg16) {
         let data = self.get_reg16(&reg) as u32;
         let hl = self.regs.hl() as u32;
         let sum = hl + data;
-        let (result, carry) = split_u32(sum);
+        let (carry, result) = split_u32(sum);
         self.regs.set_hl(result);
         self.regs.set_zero(result == 0);
         self.regs.set_subtract(false);
-        self.regs.set_half_carry(carry & (1 << 11) == 0);
-        self.regs.set_carry(carry & (1 << 15) == 0);
+        self.regs.set_half_carry(carry & (1 << 11) == 1);
+        self.regs.set_carry(carry & (1 << 15) == 1);
     }
 
     fn add_sp(&mut self) {
@@ -390,18 +387,22 @@ impl Cpu {
     }
 
     fn sub_a(&mut self, operand: Operand, with_carry: bool, save_back: bool) {
-        let data = self.get_8bit_operand(&operand);
-        let mut diff = (self.regs.a as u16).wrapping_sub(data as u16);
-        if with_carry && self.regs.carry_flag() {
-            diff = diff.wrapping_sub(1);
-        }
-        let (result, borrow) = split_u16(diff);
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(borrow & (1 << 3) == 0);
-        self.regs.set_carry(borrow & (1 << 7) == 0);
+        let left = self.regs.a as u16;
+        let right = self.get_8bit_operand(&operand) as u16;
+        let c: u16 = if with_carry && self.regs.carry_flag() {
+            1
+        } else {
+            0
+        };
+        let mut diff = left.wrapping_sub(right);
+        diff = diff.wrapping_sub(c);
+
+        self.regs.set_zero(diff == 0);
+        self.regs.set_subtract(true);
+        self.regs.set_half_carry((left & 0xF) < ((right & 0xF) + c));
+        self.regs.set_carry(left < right + c);
         if save_back {
-            self.regs.a = result;
+            self.regs.a = diff as u8;
         }
     }
 
@@ -410,7 +411,7 @@ impl Cpu {
         self.regs.a &= data;
         self.regs.set_zero(self.regs.a == 0);
         self.regs.set_subtract(false);
-        self.regs.set_half_carry(false);
+        self.regs.set_half_carry(true);
         self.regs.set_carry(false);
     }
 
@@ -449,13 +450,9 @@ impl Cpu {
     }
 
     fn inc16(&mut self, reg: Reg16) {
-        let data = self.get_reg16(&reg) as u32;
-        let sum = data + 1;
-        let (result, carry) = split_u32(sum);
-        self.set_reg16(&reg, result);
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(carry & (1 << 11) == 0);
+        let data = self.get_reg16(&reg);
+        let sum = data.wrapping_add(1);
+        self.set_reg16(&reg, sum);
     }
 
     fn dec8(&mut self, operand: Operand) {
@@ -477,11 +474,11 @@ impl Cpu {
     fn dec16(&mut self, reg: Reg16) {
         let data = self.get_reg16(&reg) as u32;
         let sum = data + 1;
-        let (result, carry) = split_u32(sum);
+        let (carry, result) = split_u32(sum);
         self.set_reg16(&reg, result);
         self.regs.set_zero(result == 0);
         self.regs.set_subtract(true);
-        self.regs.set_half_carry(carry & (1 << 11) == 0);
+        self.regs.set_half_carry(carry & (1 << 11) == 1);
     }
 
     fn rlc(&mut self, operand: Operand) {}
