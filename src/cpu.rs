@@ -1,6 +1,4 @@
-use std::fs::File;
 use std::io::Write;
-use std::rc::Rc;
 
 use crate::bus::Bus;
 use crate::decode::*;
@@ -10,12 +8,12 @@ use crate::registers::Registers;
 
 pub struct Cpu {
     regs: Registers,
-    bus: Rc<Bus>,
+    bus: Bus,
     counter: u64, // count number of executed instructions
 }
 
 impl Cpu {
-    pub fn new(bus: Rc<Bus>) -> Self {
+    pub fn new(bus: Bus) -> Self {
         Cpu {
             regs: Registers::new(),
             bus,
@@ -81,7 +79,8 @@ impl Cpu {
             Reg16::De => self.regs.set_de(data),
             Reg16::Hl => self.regs.set_hl(data),
             Reg16::Sp => self.regs.sp = data,
-            _ => unreachable!(),
+            Reg16::Pc => self.regs.pc = data,
+            Reg16::HlIncr | Reg16::HlDecr | Reg16::SpPlusD => unreachable!(),
         };
     }
 
@@ -102,7 +101,8 @@ impl Cpu {
                 hl
             }
             Reg16::Sp => self.regs.sp,
-            _ => unreachable!(),
+            Reg16::Pc => self.regs.pc,
+            Reg16::SpPlusD => unreachable!(),
         }
     }
 
@@ -140,7 +140,14 @@ impl Cpu {
         let p1 = self.bus.read(self.regs.pc.wrapping_add(1));
         let p2 = self.bus.read(self.regs.pc.wrapping_add(2));
         let p3 = self.bus.read(self.regs.pc.wrapping_add(3));
-        writeln!(file, "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
+        writeln!(
+            file,
+            concat!(
+                "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} ",
+                "SP:{:04X} PC:{:04X} ",
+                "PCMEM:{:02X},{:02X},{:02X},{:02X} ",
+                "Stack:{:02X},{:02X},{:02X}"
+            ),
             self.regs.a,
             self.regs.f,
             self.regs.b,
@@ -151,7 +158,15 @@ impl Cpu {
             self.regs.l,
             self.regs.sp,
             self.regs.pc,
-            p0, p1, p2, p3).unwrap();
+            p0,
+            p1,
+            p2,
+            p3,
+            self.bus.read(self.regs.sp),
+            self.bus.read(self.regs.sp - 1),
+            self.bus.read(self.regs.sp - 2),
+        )
+        .unwrap();
     }
 
     pub fn execute(&mut self, inst: Inst) {
@@ -282,9 +297,21 @@ impl Cpu {
         };
     }
 
-    fn push(&mut self, reg: Reg16) {}
+    fn push(&mut self, reg: Reg16) {
+        let (high, low) = split_u16(self.get_reg16(&reg));
+        self.regs.sp -= 1;
+        self.bus.write(self.regs.sp, high);
+        self.regs.sp -= 1;
+        self.bus.write(self.regs.sp, low);
+    }
 
-    fn pop(&mut self, reg: Reg16) {}
+    fn pop(&mut self, reg: Reg16) {
+        let low = self.bus.read(self.regs.sp);
+        self.regs.sp += 1;
+        let high = self.bus.read(self.regs.sp);
+        self.regs.sp += 1;
+        self.set_reg16(&reg, combine_to_u16(high, low));
+    }
 
     fn jr(&mut self, cond: Cond) {
         let data = i32::from(self.read_next_8bit() as i8);
@@ -308,13 +335,18 @@ impl Cpu {
     }
 
     fn call(&mut self, cond: Cond) {
-        if !self.check_cond(cond) {
-            return;
+        if self.check_cond(cond) {
+            let new_address = self.read_next_16bit();
+            self.push(Reg16::Pc);
+            self.regs.pc = new_address;
         }
-        // TODO: call logic
     }
 
-    fn ret(&mut self, cond: Cond) {}
+    fn ret(&mut self, cond: Cond) {
+        if self.check_cond(cond) {
+            self.pop(Reg16::Pc);
+        }
+    }
 
     fn reti(&mut self) {}
 

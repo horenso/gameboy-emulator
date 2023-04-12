@@ -104,4 +104,5 @@ pub enum Reg16 {
     HlDecr,
     Sp,
     SpPlusD,
+    Pc,
 }

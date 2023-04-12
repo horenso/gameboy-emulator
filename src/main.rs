@@ -17,9 +17,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use std::env::args;
 use std::fs::File;
-use std::io::{self, Stdout};
 use std::path::Path;
-use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -30,7 +28,7 @@ fn main() -> Result<(), String> {
     let cartridge = Cartridge::load_from_file(cartridge_path_arg.clone())?;
 
     let bus = Bus::new(cartridge);
-    let mut cpu = Cpu::new(Rc::new(bus));
+    let mut cpu = Cpu::new(bus);
 
     let base = Path::new(&cartridge_path_arg)
         .file_name()
@@ -81,7 +79,7 @@ fn main() -> Result<(), String> {
         cpu.fetch_and_execute();
         cpu.debug_print(&mut debug_file);
 
-        sleep(Duration::from_millis(200));
+        // sleep(Duration::from_millis(200));
     }
 
     Ok(())
