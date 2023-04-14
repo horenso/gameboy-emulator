@@ -40,17 +40,12 @@ pub enum Inst {
     Dec16(Reg16),
 
     // Rotations and shifts
-    Rlc(Operand),
-    Rrc(Operand),
-    Rl(Operand),
-    Rr(Operand),
-    Sla(Operand),
-    Sra(Operand),
+    Rotate(Rotation, bool, Operand),
+    Shift(ShiftType, Operand),
     Swap(Operand),
-    Srl(Operand),
-    Bit(u8, Operand),
-    Res(u8, Operand),
-    Set(u8, Operand),
+    TestBit(u8, Operand),
+    ResetBit(u8, Operand),
+    SetBit(u8, Operand),
 
     // Assorted operations on accumulator or flags
     Rlca,
@@ -72,6 +67,19 @@ pub enum Operand {
     R8(Reg8),      // 8-bit register
     R16(Reg16),    // 16-bit register
     IndR16(Reg16), // address that is stored the 16-bit register
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Rotation {
+    Left,
+    Right,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum ShiftType {
+    LeftArithmetic,
+    RightArithmetic,
+    RightLogic,
 }
 
 #[derive(PartialEq, Debug)]

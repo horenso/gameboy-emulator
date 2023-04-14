@@ -171,18 +171,19 @@ fn arithmetic_logic(y: u8, z: u8, immediate: bool) -> Inst {
 
 pub fn decode_prefixed(opcode: u8) -> Inst {
     let y = (opcode & 0b00111000) >> 3;
+    let operand = operand(y);
     match opcode {
-        0x00..=0x07 => Inst::Rlc(operand(y)),
-        0x08..=0x0F => Inst::Rrc(operand(y)),
-        0x10..=0x17 => Inst::Rl(operand(y)),
-        0x18..=0x1F => Inst::Rr(operand(y)),
-        0x20..=0x27 => Inst::Sla(operand(y)),
-        0x28..=0x2F => Inst::Sra(operand(y)),
-        0x30..=0x37 => Inst::Swap(operand(y)),
-        0x38..=0x3F => Inst::Srl(operand(y)),
-        0x40..=0x7F => Inst::Bit(y, operand(y)),
-        0x80..=0xBF => Inst::Res(y, operand(y)),
-        0xC0..=0xFF => Inst::Set(y, operand(y)),
+        0x00..=0x07 => Inst::Rotate(Rotation::Left, true, operand),
+        0x08..=0x0F => Inst::Rotate(Rotation::Right, true, operand),
+        0x10..=0x17 => Inst::Rotate(Rotation::Left, false, operand),
+        0x18..=0x1F => Inst::Rotate(Rotation::Right, false, operand),
+        0x20..=0x27 => Inst::Shift(ShiftType::LeftArithmetic, operand),
+        0x28..=0x2F => Inst::Shift(ShiftType::RightArithmetic, operand),
+        0x30..=0x37 => Inst::Swap(operand),
+        0x38..=0x3F => Inst::Shift(ShiftType::RightLogic, operand),
+        0x40..=0x7F => Inst::TestBit(y, operand),
+        0x80..=0xBF => Inst::ResetBit(y, operand),
+        0xC0..=0xFF => Inst::SetBit(y, operand),
     }
 }
 
@@ -195,6 +196,9 @@ mod tests {
 
     #[test]
     fn test_decode_prefixed() {
-        assert_eq!(decode_prefixed(0x62), Inst::Bit(4, Operand::R8(Reg8::D)));
+        assert_eq!(
+            decode_prefixed(0x62),
+            Inst::TestBit(4, Operand::R8(Reg8::D))
+        );
     }
 }

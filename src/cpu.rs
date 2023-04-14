@@ -125,6 +125,17 @@ impl Cpu {
         }
     }
 
+    fn set_8bit_operand(&mut self, operand: &Operand, data: u8) {
+        match operand {
+            Operand::R8(reg) => self.set_reg8(reg, data),
+            Operand::IndR16(reg) => {
+                let addr = self.get_reg16(reg);
+                self.bus.write(addr, data);
+            }
+            _ => unreachable!(),
+        }
+    }
+
     fn check_cond(&self, cond: Cond) -> bool {
         match cond {
             Cond::Always => true,
@@ -204,17 +215,12 @@ impl Cpu {
             Inst::Dec8(operand) => self.dec8(operand),
             Inst::Dec16(reg) => self.dec16(reg),
 
-            Inst::Rlc(operand) => self.rlc(operand),
-            Inst::Rrc(operand) => self.rrc(operand),
-            Inst::Rl(operand) => self.rl(operand),
-            Inst::Rr(operand) => self.rr(operand),
-            Inst::Sla(operand) => self.sla(operand),
-            Inst::Sra(operand) => self.sra(operand),
+            Inst::Rotate(rotation, circular, operand) => self.rotate(rotation, circular, operand),
+            Inst::Shift(shift, operand) => self.shift(shift, operand),
             Inst::Swap(operand) => self.swap(operand),
-            Inst::Srl(operand) => self.srl(operand),
-            Inst::Bit(amount, operand) => self.bit(amount, operand),
-            Inst::Res(amount, operand) => self.res(amount, operand),
-            Inst::Set(amount, operand) => self.set(amount, operand),
+            Inst::TestBit(amount, operand) => self.test_bit(amount, operand),
+            Inst::ResetBit(amount, operand) => self.reset_bit(amount, operand),
+            Inst::SetBit(amount, operand) => self.set_bit(amount, operand),
 
             Inst::Rlca => self.rlca(),
             Inst::Rrca => self.rrca(),
@@ -481,27 +487,80 @@ impl Cpu {
         self.regs.set_half_carry(carry & (1 << 11) == 1);
     }
 
-    fn rlc(&mut self, operand: Operand) {}
+    fn rotate(&mut self, direction: Rotation, circular: bool, operand: Operand) {
+        let data = self.get_8bit_operand(&operand);
+        let (result, carry) = match direction {
+            Rotation::Left => {
+                let mut rotated = data.rotate_left(1);
+                if circular && self.regs.carry_flag() {
+                    rotated &= 0b1000_0000;
+                }
+                (rotated, data & 0b1000_0000 != 0)
+            }
+            Rotation::Right => {
+                let mut rotated = data.rotate_right(1);
+                if circular && self.regs.carry_flag() {
+                    rotated &= 1;
+                }
+                (rotated, data & 1 != 0)
+            }
+        };
+        self.regs.set_zero(result == 0);
+        self.regs.set_subtract(false);
+        self.regs.set_half_carry(false);
+        self.regs.set_carry(carry);
+        self.set_8bit_operand(&operand, result);
+    }
 
-    fn rrc(&mut self, operand: Operand) {}
+    fn shift(&mut self, shift: ShiftType, operand: Operand) {
+        let data = self.get_8bit_operand(&operand);
+        let (result, carry) = match shift {
+            ShiftType::LeftArithmetic => ((data << 1), data & 0b1000_0000 != 0),
+            ShiftType::RightArithmetic => ((data >> 1) & 0b1000_0000, data & 1 != 0),
+            ShiftType::RightLogic => (data >> 1, data & 1 != 0),
+        };
+        self.regs.set_zero(result == 0);
+        self.regs.set_subtract(false);
+        self.regs.set_half_carry(false);
+        self.regs.set_carry(carry);
+        self.set_8bit_operand(&operand, result);
+    }
 
-    fn rl(&mut self, operand: Operand) {}
+    fn swap(&mut self, operand: Operand) {
+        let data = self.get_8bit_operand(&operand);
+        let result = (data >> 4) | (data << 4);
+        self.regs.set_zero(result == 0);
+        self.regs.set_subtract(false);
+        self.regs.set_half_carry(false);
+        self.regs.set_carry(false);
+        self.set_8bit_operand(&operand, result);
+    }
 
-    fn rr(&mut self, operand: Operand) {}
+    fn test_bit(&mut self, amount: u8, operand: Operand) {
+        let data = self.get_8bit_operand(&operand);
+        let result = data | (1 << amount);
+        self.regs.set_zero(result == 0);
+        self.regs.set_subtract(false);
+        self.regs.set_half_carry(true);
+    }
 
-    fn sla(&mut self, operand: Operand) {}
+    fn reset_bit(&mut self, amount: u8, operand: Operand) {
+        let data = self.get_8bit_operand(&operand);
+        let result = data & !(1 << amount);
+        self.regs.set_zero(result == 0);
+        self.regs.set_subtract(false);
+        self.regs.set_half_carry(true);
+        self.set_8bit_operand(&operand, result);
+    }
 
-    fn sra(&mut self, operand: Operand) {}
-
-    fn swap(&mut self, operand: Operand) {}
-
-    fn srl(&mut self, operand: Operand) {}
-
-    fn bit(&mut self, amount: u8, operand: Operand) {}
-
-    fn res(&mut self, amount: u8, operand: Operand) {}
-
-    fn set(&mut self, amount: u8, operand: Operand) {}
+    fn set_bit(&mut self, amount: u8, operand: Operand) {
+        let data = self.get_8bit_operand(&operand);
+        let result = data | (1 << amount);
+        self.regs.set_zero(result == 0);
+        self.regs.set_subtract(false);
+        self.regs.set_half_carry(true);
+        self.set_8bit_operand(&operand, result);
+    }
 
     fn rlca(&mut self) {}
 
