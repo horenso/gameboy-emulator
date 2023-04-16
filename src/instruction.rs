@@ -40,7 +40,7 @@ pub enum Inst {
     Dec16(Reg16),
 
     // Rotations and shifts
-    Rotate(Rotation, bool, Operand),
+    Rotate(Rotation, Operand),
     Shift(ShiftType, Operand),
     Swap(Operand),
     TestBit(u8, Operand),
@@ -48,10 +48,6 @@ pub enum Inst {
     SetBit(u8, Operand),
 
     // Assorted operations on accumulator or flags
-    Rlca,
-    Rrca,
-    Rla,
-    Rra,
     Daa, // decimal adjust A
     Cpl,
     Scf,
@@ -72,7 +68,9 @@ pub enum Operand {
 #[derive(PartialEq, Debug)]
 pub enum Rotation {
     Left,
+    LeftCircular,
     Right,
+    RightCircular,
 }
 
 #[derive(PartialEq, Debug)]

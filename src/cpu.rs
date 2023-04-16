@@ -215,17 +215,13 @@ impl Cpu {
             Inst::Dec8(operand) => self.dec8(operand),
             Inst::Dec16(reg) => self.dec16(reg),
 
-            Inst::Rotate(rotation, circular, operand) => self.rotate(rotation, circular, operand),
+            Inst::Rotate(rotation, operand) => self.rotate(rotation, operand),
             Inst::Shift(shift, operand) => self.shift(shift, operand),
             Inst::Swap(operand) => self.swap(operand),
             Inst::TestBit(amount, operand) => self.test_bit(amount, operand),
             Inst::ResetBit(amount, operand) => self.reset_bit(amount, operand),
             Inst::SetBit(amount, operand) => self.set_bit(amount, operand),
 
-            Inst::Rlca => self.rlca(),
-            Inst::Rrca => self.rrca(),
-            Inst::Rla => self.rla(),
-            Inst::Rra => self.rra(),
             Inst::Daa => self.daa(),
             Inst::Cpl => self.cpl(),
             Inst::Scf => self.scf(),
@@ -487,23 +483,27 @@ impl Cpu {
         self.regs.set_half_carry(carry & (1 << 11) == 1);
     }
 
-    fn rotate(&mut self, direction: Rotation, circular: bool, operand: Operand) {
+    fn rotate(&mut self, direction: Rotation, operand: Operand) {
         let data = self.get_8bit_operand(&operand);
         let (result, carry) = match direction {
             Rotation::Left => {
-                let mut rotated = data.rotate_left(1);
-                if circular && self.regs.carry_flag() {
-                    rotated &= 0b1000_0000;
+                let mut rotated = data;
+                if self.regs.carry_flag() {
+                    rotated |= 0b1000_0000;
                 }
+                rotated = rotated.rotate_left(1);
                 (rotated, data & 0b1000_0000 != 0)
             }
+            Rotation::LeftCircular => (data.rotate_left(1), data & 0b1000_0000 != 0),
             Rotation::Right => {
-                let mut rotated = data.rotate_right(1);
-                if circular && self.regs.carry_flag() {
-                    rotated &= 1;
+                let mut rotated = data;
+                if self.regs.carry_flag() {
+                    rotated |= 1;
                 }
+                rotated = rotated.rotate_right(1);
                 (rotated, data & 1 != 0)
             }
+            Rotation::RightCircular => (data.rotate_right(1), data & 1 != 0),
         };
         self.regs.set_zero(result == 0);
         self.regs.set_subtract(false);
