@@ -517,7 +517,7 @@ impl Cpu {
         let (result, carry) = match shift {
             ShiftType::LeftArithmetic => ((data << 1), data & 0b1000_0000 != 0),
             ShiftType::RightArithmetic => ((data >> 1) & 0b1000_0000, data & 1 != 0),
-            ShiftType::RightLogic => (data >> 1, data & 1 != 0),
+            ShiftType::RightLogic => (data >> 1, (data & 1) != 0),
         };
         self.regs.set_zero(result == 0);
         self.regs.set_subtract(false);

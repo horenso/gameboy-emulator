@@ -171,7 +171,8 @@ fn arithmetic_logic(y: u8, z: u8, immediate: bool) -> Inst {
 
 pub fn decode_prefixed(opcode: u8) -> Inst {
     let y = (opcode & 0b00111000) >> 3;
-    let operand = operand(y);
+    let z = opcode & 0b00000111;
+    let operand = operand(z);
     match opcode {
         0x00..=0x07 => Inst::Rotate(Rotation::Left, true, operand),
         0x08..=0x0F => Inst::Rotate(Rotation::Right, true, operand),
