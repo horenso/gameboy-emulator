@@ -313,23 +313,21 @@ impl Cpu {
 
     fn jr(&mut self, cond: Cond) {
         let data = i32::from(self.read_next_8bit() as i8);
-        if !self.check_cond(cond) {
-            return;
+        if self.check_cond(cond) {
+            let result = self.regs.pc as i32 + data;
+            self.regs.pc = result as u16;
         }
-        let result = self.regs.pc as i32 + data;
-        self.regs.pc = result as u16;
     }
 
     fn jp(&mut self, cond: Cond, dest: Operand) {
-        if !self.check_cond(cond) {
-            return;
-        }
         let addr = match dest {
             Operand::A16 => self.read_next_16bit(),
             Operand::R16(reg) => self.get_reg16(&reg),
             _ => unreachable!(),
         };
-        self.regs.pc = addr;
+        if self.check_cond(cond) {
+            self.regs.pc = addr;
+        }
     }
 
     fn call(&mut self, cond: Cond) {
@@ -351,17 +349,20 @@ impl Cpu {
     fn rst(&mut self, amount: u8) {}
 
     fn add_a(&mut self, operand: Operand, with_carry: bool) {
-        let left = self.get_8bit_operand(&operand) as u16;
-        let right = self.regs.a as u16;
-        let mut sum = left + right;
-        if with_carry && self.regs.carry_flag() {
-            sum += 1;
+        let left = self.regs.a as u16;
+        let right = self.get_8bit_operand(&operand) as u16;
+        let c = if with_carry && self.regs.carry_flag() {
+            1
+        } else {
+            0
         };
+        let sum = left + right + c;
         let (carry, result) = split_u16(sum);
         self.regs.a = result;
         self.regs.set_zero(result == 0);
         self.regs.set_subtract(false);
-        self.regs.set_half_carry((left & 0xF) + (right & 0xF) > 0xF);
+        self.regs
+            .set_half_carry((left & 0xF) + (right & 0xF) + c > 0xF);
         self.regs.set_carry(carry > 0);
     }
 
@@ -371,10 +372,10 @@ impl Cpu {
         let sum = hl + data;
         let (carry, result) = split_u32(sum);
         self.regs.set_hl(result);
-        self.regs.set_zero(result == 0);
         self.regs.set_subtract(false);
-        self.regs.set_half_carry(carry & (1 << 11) == 1);
-        self.regs.set_carry(carry & (1 << 15) == 1);
+        self.regs
+            .set_half_carry((data & 0xFFF) + (hl & 0xFFF) > 0xFFF);
+        self.regs.set_carry(carry > 0);
     }
 
     fn add_sp(&mut self) {
