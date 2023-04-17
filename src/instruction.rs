@@ -67,9 +67,9 @@ pub enum Operand {
 
 #[derive(PartialEq, Debug)]
 pub enum Rotation {
-    Left,
-    LeftCircular,
-    Right,
+    LeftThroughCarry, // The RR instuctions
+    LeftCircular,     // The RRC instructions
+    RightThroughCarry,
     RightCircular,
 }
 

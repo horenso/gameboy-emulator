@@ -486,22 +486,22 @@ impl Cpu {
     fn rotate(&mut self, direction: Rotation, operand: Operand) {
         let data = self.get_8bit_operand(&operand);
         let (result, carry) = match direction {
-            Rotation::Left => {
-                let mut rotated = data;
-                if self.regs.carry_flag() {
-                    rotated |= 0b1000_0000;
-                }
-                rotated = rotated.rotate_left(1);
-                (rotated, data & 0b1000_0000 != 0)
-            }
-            Rotation::LeftCircular => (data.rotate_left(1), data & 0b1000_0000 != 0),
-            Rotation::Right => {
-                let mut rotated = data;
+            Rotation::LeftThroughCarry => {
+                let carry = data & 0b1000_0000 != 0;
+                let mut rotated = data << 1;
                 if self.regs.carry_flag() {
                     rotated |= 1;
                 }
-                rotated = rotated.rotate_right(1);
-                (rotated, data & 1 != 0)
+                (rotated, carry)
+            }
+            Rotation::LeftCircular => (data.rotate_left(1), data & 0b1000_0000 != 0),
+            Rotation::RightThroughCarry => {
+                let carry = data & 1 != 0;
+                let mut rotated = data >> 1;
+                if self.regs.carry_flag() {
+                    rotated |= 0b1000_0000;
+                }
+                (rotated, carry)
             }
             Rotation::RightCircular => (data.rotate_right(1), data & 1 != 0),
         };
