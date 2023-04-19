@@ -3,11 +3,11 @@ pub enum Inst {
     Prefix, // 0xCB is a prefix for 2 byte instructions
 
     // Control
-    NoOp,
+    NoOp, // no operation
     Halt,
     Stop,
-    Di,
-    Ei,
+    Di, // disable interrupts
+    Ei, // enable interrupts
 
     // Load and stack operations
     Ld8(Operand, Operand),

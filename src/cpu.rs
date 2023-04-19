@@ -565,14 +565,6 @@ impl Cpu {
         self.set_8bit_operand(&operand, result);
     }
 
-    fn rlca(&mut self) {}
-
-    fn rrca(&mut self) {}
-
-    fn rla(&mut self) {}
-
-    fn rra(&mut self) {}
-
     fn daa(&mut self) {}
 
     fn cpl(&mut self) {}
