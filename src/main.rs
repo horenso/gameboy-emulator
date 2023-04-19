@@ -17,6 +17,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use std::env::args;
 use std::fs::File;
+use std::io;
 use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
@@ -38,46 +39,46 @@ fn main() -> Result<(), String> {
     std::fs::create_dir_all("logs").unwrap();
     let mut debug_file = File::create(format!("logs/{}.log", base)).unwrap();
 
-    let sdl_context = sdl2::init()?;
-    let video_subsystem = sdl_context.video()?;
+    // let sdl_context = sdl2::init()?;
+    // let video_subsystem = sdl_context.video()?;
 
-    let window = video_subsystem
-        .window("gameboy-emulator", 800, 600)
-        .position_centered()
-        .build()
-        .expect("could not initialize video subsystem");
+    // let window = video_subsystem
+    //     .window("gameboy-emulator", 800, 600)
+    //     .position_centered()
+    //     .build()
+    //     .expect("could not initialize video subsystem");
 
-    let mut canvas = window
-        .into_canvas()
-        .build()
-        .expect("could not make a canvas");
+    // let mut canvas = window
+    //     .into_canvas()
+    //     .build()
+    //     .expect("could not make a canvas");
 
-    canvas.set_draw_color(Color::RGB(0, 255, 255));
-    canvas.clear();
-    canvas.present();
-    let mut event_pump = sdl_context.event_pump()?;
+    // canvas.set_draw_color(Color::RGB(0, 255, 255));
+    // canvas.clear();
+    // canvas.present();
+    // let mut event_pump = sdl_context.event_pump()?;
 
-    cpu.debug_print(&mut debug_file);
+    cpu.debug_print(&mut io::stdout());
     'main_loop: loop {
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.clear();
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    break 'main_loop;
-                }
-                _ => (),
-            }
-        }
-        canvas.present();
+        // canvas.set_draw_color(Color::RGB(0, 0, 0));
+        // canvas.clear();
+        // for event in event_pump.poll_iter() {
+        //     match event {
+        //         Event::Quit { .. }
+        //         | Event::KeyDown {
+        //             keycode: Some(Keycode::Escape),
+        //             ..
+        //         } => {
+        //             break 'main_loop;
+        //         }
+        //         _ => (),
+        //     }
+        // }
+        // canvas.present();
 
         // Executing cpu instructions
         cpu.fetch_and_execute();
-        cpu.debug_print(&mut debug_file);
+        cpu.debug_print(&mut io::stdout());
 
         // sleep(Duration::from_millis(200));
     }

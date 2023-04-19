@@ -1,3 +1,3 @@
-cargo run cartridges/01-special.gb
+trap : INT
 cd gameboy-doctor
-./gameboy-doctor ../logs/01-special.gb.log cpu_instrs 1
+cargo run ../cartridges/01-special.gb | ./gameboy-doctor - cpu_instrs 1

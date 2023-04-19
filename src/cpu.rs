@@ -9,7 +9,7 @@ use crate::registers::Registers;
 pub struct Cpu {
     regs: Registers,
     bus: Bus,
-    counter: u64, // count number of executed instructions
+    pub counter: u64, // count number of executed instructions
 }
 
 impl Cpu {
@@ -178,7 +178,9 @@ impl Cpu {
 
     pub fn execute(&mut self, inst: Inst) {
         self.counter += 1;
-        println!("{:08}: {:?}", self.counter, inst);
+        // if self.counter % 10000 == 0 {
+        // pristdout"{:08}: {:?}", self.counter, inst);
+        // }
         match inst {
             Inst::Prefix => unreachable!(),
 

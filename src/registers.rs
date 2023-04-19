@@ -41,8 +41,15 @@ impl Registers {
         }
     }
 
+    pub fn set_f(&mut self, value: u8) {
+        // Only the upper four bits (the flags) can be set
+        self.f = value & 0xF0;
+    }
+
     pub fn set_af(&mut self, value: u16) {
-        (self.a, self.f) = split_u16(value);
+        let (a, f) = split_u16(value);
+        self.a = a;
+        self.set_f(f);
     }
 
     pub fn set_bc(&mut self, value: u16) {
