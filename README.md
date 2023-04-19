@@ -14,13 +14,17 @@ cargo run path/to/cartridge
 
 https://gbdev.io/pandocs/
 
-Tables:
-https://gbdev.io/gb-opcodes/optables/
-https://www.pastraiser.com/cpu/gameboy/gameboy_opcodes.html
+CPU instruction tables:
+ - https://gbdev.io/gb-opcodes/optables/
+ - https://www.pastraiser.com/cpu/gameboy/gameboy_opcodes.html
 
-https://github.com/rockytriton/LLD_gbemu/raw/main/docs/The%20Cycle-Accurate%20Game%20Boy%20Docs.pdf
+CPU instruction descriptions:
+ - https://github.com/rockytriton/LLD_gbemu/raw/main/docs/The%20Cycle-Accurate%20Game%20Boy%20Docs.pdf
+ - http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
+ - https://gekkio.fi/files/gb-docs/gbctr.pdf
 
-https://gekkio.fi/files/gb-docs/gbctr.pdf
+Decoding CPU instructions structurally:
+ - https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
 
-Decoding:
-https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
+How does DDA work:
+ - https://forums.nesdev.org/viewtopic.php?t=15944
