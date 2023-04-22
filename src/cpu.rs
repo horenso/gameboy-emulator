@@ -565,7 +565,26 @@ impl Cpu {
         self.set_8bit_operand(&operand, result);
     }
 
-    fn daa(&mut self) {}
+    fn daa(&mut self) {
+        if self.regs.subtraction_flag() {
+            if self.regs.carry_flag() {
+                self.regs.a -= 0x60;
+            }
+            if self.regs.half_carry_flag() {
+                self.regs.a -= 0x6;
+            }
+        } else {
+            if self.regs.carry_flag() || self.regs.a > 0x99 {
+                self.regs.a += 0x60;
+                self.regs.set_subtract(true);
+            }
+            if self.regs.half_carry_flag() || (self.regs.a & 0x0F) > 0x09 {
+                self.regs.a += 0x6;
+            }
+        }
+        self.regs.set_zero(self.regs.a == 0);
+        self.regs.set_half_carry(false);
+    }
 
     fn cpl(&mut self) {}
 
