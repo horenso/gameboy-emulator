@@ -1,4 +1,4 @@
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Inst {
     Prefix, // 0xCB is a prefix for 2 byte instructions
 
@@ -54,7 +54,7 @@ pub enum Inst {
     Ccf,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Operand {
     D8,            // immediate 8-bit data
     D16,           // immediate 16-bit data
@@ -65,7 +65,7 @@ pub enum Operand {
     IndR16(Reg16), // address that is stored the 16-bit register
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Rotation {
     LeftThroughCarry, // The RR instuctions
     LeftCircular,     // The RRC instructions
@@ -73,14 +73,14 @@ pub enum Rotation {
     RightCircular,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum ShiftType {
     LeftArithmetic,
     RightArithmetic,
     RightLogic,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Cond {
     Always,
     NotZero,
@@ -89,7 +89,7 @@ pub enum Cond {
     Carry,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Reg8 {
     A,
     B,
@@ -100,7 +100,7 @@ pub enum Reg8 {
     L,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Reg16 {
     Af,
     Bc,

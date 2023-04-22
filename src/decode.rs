@@ -1,6 +1,34 @@
+use std::u8;
+
 use crate::instruction::*;
 
+const fn calc_lookup(prefixed: bool) -> [Inst; 256] {
+    let mut lookup = [Inst::NoOp; 256];
+
+    let mut opcode = 0;
+    while opcode < lookup.len() {
+        lookup[opcode] = if prefixed {
+            private_decode_prefixed(opcode as u8)
+        } else {
+            private_decode_unprefixed(opcode as u8)
+        };
+        opcode += 1;
+    }
+    lookup
+}
+
+pub const UNPREFIXED_LOOKUP: [Inst; 256] = calc_lookup(false);
+pub const PREFIXED_LOOKUP: [Inst; 256] = calc_lookup(true);
+
 pub fn decode_unprefixed(opcode: u8) -> Inst {
+    UNPREFIXED_LOOKUP[opcode as usize]
+}
+
+pub fn decode_prefixed(opcode: u8) -> Inst {
+    PREFIXED_LOOKUP[opcode as usize]
+}
+
+const fn private_decode_unprefixed(opcode: u8) -> Inst {
     let x = opcode >> 6;
     let y = (opcode & 0b00111000) >> 3;
     let z = opcode & 0b00000111;
@@ -100,7 +128,7 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
     }
 }
 
-fn operand(code: u8) -> Operand {
+const fn operand(code: u8) -> Operand {
     match code {
         0 => Operand::R8(Reg8::B),
         1 => Operand::R8(Reg8::C),
@@ -114,7 +142,7 @@ fn operand(code: u8) -> Operand {
     }
 }
 
-fn operand_imm16(code: u8) -> Operand {
+const fn operand_imm16(code: u8) -> Operand {
     match code {
         0 => Operand::IndR16(Reg16::Bc),
         1 => Operand::IndR16(Reg16::De),
@@ -124,7 +152,7 @@ fn operand_imm16(code: u8) -> Operand {
     }
 }
 
-fn rp_table(code: u8) -> Reg16 {
+const fn rp_table(code: u8) -> Reg16 {
     match code {
         0 => Reg16::Bc,
         1 => Reg16::De,
@@ -134,7 +162,7 @@ fn rp_table(code: u8) -> Reg16 {
     }
 }
 
-fn rp2_table(code: u8) -> Reg16 {
+const fn rp2_table(code: u8) -> Reg16 {
     match code {
         0 => Reg16::Bc,
         1 => Reg16::De,
@@ -144,7 +172,7 @@ fn rp2_table(code: u8) -> Reg16 {
     }
 }
 
-fn cond(code: u8) -> Cond {
+const fn cond(code: u8) -> Cond {
     match code {
         0 => Cond::NotZero,
         1 => Cond::Zero,
@@ -154,7 +182,7 @@ fn cond(code: u8) -> Cond {
     }
 }
 
-fn arithmetic_logic(y: u8, z: u8, immediate: bool) -> Inst {
+const fn arithmetic_logic(y: u8, z: u8, immediate: bool) -> Inst {
     let operand = if immediate { Operand::D8 } else { operand(z) };
     match y {
         0 => Inst::Add(operand),
@@ -169,7 +197,7 @@ fn arithmetic_logic(y: u8, z: u8, immediate: bool) -> Inst {
     }
 }
 
-pub fn decode_prefixed(opcode: u8) -> Inst {
+const fn private_decode_prefixed(opcode: u8) -> Inst {
     let y = (opcode & 0b00111000) >> 3;
     let z = opcode & 0b00000111;
     let operand = operand(z);

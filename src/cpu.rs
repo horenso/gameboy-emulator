@@ -40,11 +40,14 @@ impl Cpu {
 
     fn fetch(&mut self) -> Inst {
         let fetched = self.read_next_8bit();
-        let mut inst = decode_unprefixed(fetched);
-        if inst == Inst::Prefix {
-            let fetched = self.read_next_8bit();
-            inst = decode_prefixed(fetched);
-        }
+        let inst = decode_unprefixed(fetched);
+        let inst = match inst {
+            Inst::Prefix => {
+                let fetched = self.read_next_8bit();
+                decode_prefixed(fetched)
+            }
+            _ => inst,
+        };
         inst
     }
 
