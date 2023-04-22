@@ -571,18 +571,18 @@ impl Cpu {
     fn daa(&mut self) {
         if self.regs.subtraction_flag() {
             if self.regs.carry_flag() {
-                self.regs.a -= 0x60;
+                self.regs.a = self.regs.a.wrapping_sub(0x60);
             }
             if self.regs.half_carry_flag() {
-                self.regs.a -= 0x6;
+                self.regs.a = self.regs.a.wrapping_sub(0x6);
             }
         } else {
             if self.regs.carry_flag() || self.regs.a > 0x99 {
-                self.regs.a += 0x60;
-                self.regs.set_subtract(true);
+                self.regs.a = self.regs.a.wrapping_add(0x60);
+                self.regs.set_carry(true);
             }
             if self.regs.half_carry_flag() || (self.regs.a & 0x0F) > 0x09 {
-                self.regs.a += 0x6;
+                self.regs.a = self.regs.a.wrapping_add(0x6);
             }
         }
         self.regs.set_zero(self.regs.a == 0);
