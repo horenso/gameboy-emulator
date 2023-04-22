@@ -508,7 +508,10 @@ impl Cpu {
             }
             Rotation::RightCircular => (data.rotate_right(1), data & 1 != 0),
         };
-        self.regs.set_zero(result == 0);
+        match operand {
+            Operand::R8(Reg8::A) => self.regs.set_zero(false),
+            _ => self.regs.set_zero(result == 0),
+        };
         self.regs.set_subtract(false);
         self.regs.set_half_carry(false);
         self.regs.set_carry(carry);
