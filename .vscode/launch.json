@@ -19,7 +19,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["./cartridges/01-special.gb"],
+            "args": ["./cartridges/tetris.gb"],
             "cwd": "${workspaceFolder}"
         },
         {

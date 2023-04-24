@@ -1,7 +1,13 @@
+[rust]
+debuginfo-level = 1
+
 [package]
 name = "gameboy-emulator"
 version = "0.1.0"
 edition = "2021"
+
+[profile.release]
+debug = 1
 
 [dependencies]
 sdl2 = "0.35.2"
