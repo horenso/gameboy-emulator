@@ -41,7 +41,7 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
                 2 => Inst::Rotate(Rotation::LeftThroughCarry, Operand::R8(Reg8::A)),
                 3 => Inst::Rotate(Rotation::RightThroughCarry, Operand::R8(Reg8::A)),
                 4 => Inst::Daa,
-                5 => Inst::Cpl,
+                5 => Inst::ComplementA,
                 6 => Inst::Scf,
                 7 => Inst::Ccf,
                 _ => unreachable!(),

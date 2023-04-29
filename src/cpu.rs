@@ -225,9 +225,9 @@ impl Cpu {
             Inst::SetBit(amount, operand) => self.set_bit(amount, operand),
 
             Inst::Daa => self.daa(),
-            Inst::Cpl => self.cpl(),
-            Inst::Scf => self.scf(),
-            Inst::Ccf => self.ccf(),
+            Inst::ComplementA => self.complement_a(),
+            Inst::SetCarryFlag => self.set_carry(),
+            Inst::ComplementCarryFlag => self.complement_carry_flag(),
         };
     }
 
@@ -589,9 +589,19 @@ impl Cpu {
         self.regs.set_half_carry(false);
     }
 
-    fn cpl(&mut self) {}
+    fn complement_a(&mut self) {
+        self.regs.a = !self.regs.a;
+        self.regs.set_subtract(true);
+        self.regs.set_half_carry(true);
+    }
 
-    fn scf(&mut self) {}
+    fn set_carry(&mut self) {
+        self.regs.set_carry(true);
+    }
 
-    fn ccf(&mut self) {}
+    fn complement_carry_flag(&mut self) {
+        self.regs.set_subtract(false);
+        self.regs.set_half_carry(false);
+        self.regs.set_carry(!self.regs.carry_flag())
+    }
 }

@@ -49,9 +49,9 @@ pub enum Inst {
 
     // Assorted operations on accumulator or flags
     Daa, // decimal adjust A
-    Cpl,
-    Scf,
-    Ccf,
+    ComplementA,
+    SetCarryFlag,
+    ComplementCarryFlag,
 }
 
 #[derive(PartialEq, Debug)]
