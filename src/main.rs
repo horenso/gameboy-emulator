@@ -44,7 +44,7 @@ fn main() -> Result<(), String> {
     let video_subsystem = sdl_context.video()?;
 
     let window = video_subsystem
-        .window("gameboy-emulator", 800, 600)
+        .window("gameboy-emulator", 800, 800)
         .position_centered()
         .build()
         .expect("could not initialize video subsystem");
@@ -59,6 +59,9 @@ fn main() -> Result<(), String> {
     canvas.present();
     let mut event_pump = sdl_context.event_pump()?;
 
+    let mut is_paused = false;
+    let mut addr: u16 = 0x0000;
+
     cpu.debug_print(&mut io::stdout());
     'main_loop: loop {
         canvas.set_draw_color(Color::RGB(0, 0, 0));
@@ -69,11 +72,17 @@ fn main() -> Result<(), String> {
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => {
-                    break 'main_loop;
-                }
+                } => break 'main_loop,
+                Event::KeyDown {
+                    keycode: Some(Keycode::P),
+                    ..
+                } => is_paused = !is_paused,
                 _ => (),
             }
+        }
+        if is_paused {
+            sleep(Duration::from_millis(100));
+            continue;
         }
 
         // 16 * 24
@@ -82,45 +91,59 @@ fn main() -> Result<(), String> {
         cpu.fetch_and_execute();
         cpu.debug_print(&mut io::stdout());
 
-        draw_tiles(&cpu, &mut canvas);
+        draw_tile(&cpu.bus, &mut canvas, &mut addr);
         canvas.present();
 
-        sleep(Duration::from_millis(500));
+        sleep(Duration::from_millis(2000));
+        println!("Ticks: {}", cpu.counter);
     }
 
     Ok(())
 }
 
-fn draw_tiles(cpu: &Cpu, canvas: &mut WindowCanvas) {
-    let data = vec![
-        0x3C, 0x7E, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x7E, 0x5E, 0x7E, 0x0A, 0x7C, 0x56, 0x38,
-        0x7C,
-    ];
+fn draw_tile(bus: &Bus, canvas: &mut WindowCanvas, addr: &mut u16) {
+    let scale = 4;
 
-    let scale = 32;
+    for tile in 0..384 {
+        println!("next tile");
+        let cols = (tile / 20) * 8;
+        let rows = (tile % 20) * 8;
+        for pixel_y in 0..8 {
+            let byte1 = bus.read(*addr);
+            println!("Byte1: {:04x} from {:04x}", byte1, addr);
+            *addr += 1;
+            let byte2 = bus.read(*addr);
+            println!("Byte2: {:04x} from {:04x}", byte2, addr);
+            *addr += 1;
+            for shift in (0..8).rev() {
+                let higher = ((byte1 >> shift) & 1) << 1;
+                let lower = (byte2 >> shift) & 1;
+                let color_id = higher | lower;
+                let color = match color_id {
+                    0 => Color::WHITE,
+                    2 => Color::GRAY,
+                    3 => Color::BLUE,
+                    1 => Color::BLACK,
+                    _ => unreachable!(),
+                };
 
-    for tile_y in 0..8 {
-        let byte1 = data[tile_y * 2];
-        let byte2 = data[tile_y * 2 + 1];
-        for shift in (0..8).rev() {
-            let higher = ((byte1 >> shift) & 1) << 1;
-            let lower = (byte2 >> shift) & 1;
-            let color_id = higher | lower;
-            let color = match color_id {
-                0 => Color::WHITE,
-                2 => Color::GRAY,
-                3 => Color::BLUE,
-                1 => Color::BLACK,
-                _ => unreachable!(),
-            };
-
-            canvas.set_draw_color(color);
+                canvas.set_draw_color(color);
+                canvas
+                    .fill_rect(Rect::new(
+                        (7 - shift + (rows as i32)) * scale as i32,
+                        (pixel_y + cols) as i32 * scale as i32,
+                        scale as u32,
+                        scale as u32,
+                    ))
+                    .unwrap();
+            }
+            canvas.set_draw_color(Color::RED);
             canvas
-                .fill_rect(Rect::new(
-                    (7 - shift) * scale,
-                    (tile_y as i32) * scale,
-                    scale as u32,
-                    scale as u32,
+                .draw_rect(Rect::new(
+                    rows as i32 * scale,
+                    cols as i32 * scale,
+                    8 * scale as u32,
+                    8 * scale as u32,
                 ))
                 .unwrap();
         }

@@ -8,7 +8,7 @@ use crate::registers::Registers;
 
 pub struct Cpu {
     regs: Registers,
-    bus: Bus,
+    pub bus: Bus,
     pub counter: u64, // count number of executed instructions
 }
 
