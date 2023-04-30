@@ -224,7 +224,7 @@ impl Cpu {
             Inst::ResetBit(amount, operand) => self.reset_bit(amount, operand),
             Inst::SetBit(amount, operand) => self.set_bit(amount, operand),
 
-            Inst::Daa => self.daa(),
+            Inst::DecimalAdjustA => self.decimal_adjust_a(),
             Inst::ComplementA => self.complement_a(),
             Inst::SetCarryFlag => self.set_carry(),
             Inst::ComplementCarryFlag => self.complement_carry_flag(),
@@ -568,7 +568,7 @@ impl Cpu {
         self.set_8bit_operand(&operand, result);
     }
 
-    fn daa(&mut self) {
+    fn decimal_adjust_a(&mut self) {
         if self.regs.subtraction_flag() {
             if self.regs.carry_flag() {
                 self.regs.a = self.regs.a.wrapping_sub(0x60);

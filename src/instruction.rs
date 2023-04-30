@@ -48,7 +48,7 @@ pub enum Inst {
     SetBit(u8, Operand),
 
     // Assorted operations on accumulator or flags
-    Daa, // decimal adjust A
+    DecimalAdjustA,
     ComplementA,
     SetCarryFlag,
     ComplementCarryFlag,
