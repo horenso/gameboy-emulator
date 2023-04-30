@@ -28,3 +28,6 @@ Decoding CPU instructions structurally:
 
 How does DDA work:
  - https://forums.nesdev.org/viewtopic.php?t=15944
+
+Interrupts and Timers:
+ - https://emudev.de/gameboy-emulator/interrupts-and-timers/
