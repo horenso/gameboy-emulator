@@ -26,6 +26,7 @@ pub struct Bus {
     w_ram: [u8; W_RAM_SIZE],     // work ram
     io_regs: [u8; IO_REGS_SIZE], // I/O registers like the Joypad
     h_ram: [u8; H_RAM_SIZE],     // high ram
+    pub v_ram_dirty: bool,
 }
 
 impl Bus {
@@ -36,6 +37,7 @@ impl Bus {
             w_ram: [0; W_RAM_SIZE],
             io_regs: [0; IO_REGS_SIZE],
             h_ram: [0; H_RAM_SIZE],
+            v_ram_dirty: false,
         }
     }
 
@@ -71,7 +73,8 @@ impl Bus {
             CART_START..=CART_END => (),
             V_RAM_START..=V_RAM_END => {
                 let v_ram_address = (address - V_RAM_START) as usize;
-                self.v_ram[v_ram_address] = data
+                self.v_ram[v_ram_address] = data;
+                self.v_ram_dirty = true
             }
             W_RAM_START..=W_RAM_END => {
                 let h_ram_address = (address - W_RAM_START) as usize;

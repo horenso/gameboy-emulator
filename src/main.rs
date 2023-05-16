@@ -35,20 +35,26 @@ fn main() -> Result<(), String> {
 
     let mut event_pump = sdl_context.event_pump()?;
     let mut is_paused = false;
+    let mut show = true;
 
-    cpu.debug_print(&bus, &mut io::stdout());
+    // cpu.debug_print(&bus, &mut io::stdout());
     'main_loop: loop {
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'main_loop,
+                Event::Quit { .. } => break 'main_loop,
                 Event::KeyDown {
-                    keycode: Some(Keycode::P),
-                    ..
-                } => is_paused = !is_paused,
+                    keycode: Some(key), ..
+                } => match key {
+                    Keycode::Escape => break 'main_loop,
+                    Keycode::P => {
+                        is_paused = !is_paused;
+                        if is_paused {
+                            println!("Paused!")
+                        }
+                    }
+                    Keycode::D => show = !show,
+                    _ => (),
+                },
                 _ => (),
             }
         }
@@ -58,8 +64,13 @@ fn main() -> Result<(), String> {
         }
 
         cpu.fetch_and_execute(&mut bus);
-        cpu.debug_print(&bus, &mut io::stdout());
-        video.draw(&mut bus);
+        // cpu.debug_print(&bus, &mut io::stdout());
+
+        if show && bus.v_ram_dirty {
+            video.draw(&bus);
+            video.draw_tile_data(&bus);
+            bus.v_ram_dirty = false;
+        }
 
         // sleep(Duration::from_millis(2000));
         println!("Ticks: {}", cpu.counter);
