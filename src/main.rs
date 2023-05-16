@@ -18,7 +18,7 @@ use sdl2::keyboard::Keycode;
 use std::env::args;
 use std::io;
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use video::Video;
 
 fn main() -> Result<(), String> {
@@ -67,9 +67,14 @@ fn main() -> Result<(), String> {
         // cpu.debug_print(&bus, &mut io::stdout());
 
         if show && bus.v_ram_dirty {
+            let now = Instant::now();
+
             video.draw(&bus);
             video.draw_tile_data(&bus);
             bus.v_ram_dirty = false;
+
+            let elapsed = now.elapsed();
+            println!("Elapsed: {:.2?}", elapsed);
         }
 
         // sleep(Duration::from_millis(2000));
