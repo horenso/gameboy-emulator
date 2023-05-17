@@ -16,7 +16,6 @@ use cpu::Cpu;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::env::args;
-use std::io;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 use video::Video;
@@ -70,15 +69,14 @@ fn main() -> Result<(), String> {
             let now = Instant::now();
 
             video.draw(&bus);
-            video.draw_tile_data(&bus);
             bus.v_ram_dirty = false;
 
             let elapsed = now.elapsed();
             println!("Elapsed: {:.2?}", elapsed);
         }
 
-        // sleep(Duration::from_millis(2000));
-        println!("Ticks: {}", cpu.counter);
+        // sleep(Duration::from_millis(5));
+        // println!("Ticks: {}", cpu.counter);
     }
     Ok(())
 }
