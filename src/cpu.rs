@@ -200,7 +200,7 @@ impl Cpu {
             Inst::Call(cond) => self.call(bus, cond),
             Inst::Ret(cond) => self.ret(bus, cond),
             Inst::Reti => self.reti(bus),
-            Inst::Rst(amount) => self.rst(amount),
+            Inst::Rst(offset) => self.rst(bus, offset),
 
             Inst::Add(operand) => self.add_a(bus, operand, false),
             Inst::AddHl(reg) => self.add_hl(reg),
@@ -256,6 +256,7 @@ impl Cpu {
                 let addr = self.read_next_16bit(bus);
                 bus.read(addr)
             }
+            Operand::IndHighPlusC => bus.read(combine_to_u16(0xFF, self.regs.c)),
             Operand::IndR16(reg) => self.load_indr(bus, &reg),
             Operand::R8(reg) => self.get_reg8(&reg),
             _ => unreachable!(),
@@ -268,6 +269,10 @@ impl Cpu {
             Operand::A16 => {
                 let addr = self.read_next_16bit(bus);
                 bus.write(addr, data);
+            }
+            Operand::IndHighPlusC => {
+                let addr = combine_to_u16(0xFF, self.regs.c);
+                bus.write(addr, data)
             }
             Operand::IndR16(reg) => self.save_indr(bus, &reg, data),
             Operand::R8(reg) => {
@@ -371,7 +376,10 @@ impl Cpu {
         self.ret(bus, Cond::Always);
     }
 
-    fn rst(&self, amount: u8) {}
+    fn rst(&mut self, bus: &mut Bus, offset: u8) {
+        self.push(bus, Reg16::Pc);
+        self.regs.pc = combine_to_u16(0, offset);
+    }
 
     fn add_a(&mut self, bus: &mut Bus, operand: Operand, with_carry: bool) {
         let left = self.regs.a as u16;

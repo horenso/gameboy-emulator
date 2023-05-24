@@ -70,9 +70,9 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
             },
             2 => match y {
                 0..=3 => Inst::Jp(cond(y), Operand::A16),
-                4 => Inst::Ld8(Operand::A8, Operand::R8(Reg8::A)),
+                4 => Inst::Ld8(Operand::IndHighPlusC, Operand::R8(Reg8::A)),
                 5 => Inst::Ld8(Operand::A16, Operand::R8(Reg8::A)),
-                6 => Inst::Ld8(Operand::R8(Reg8::A), Operand::A8),
+                6 => Inst::Ld8(Operand::R8(Reg8::A), Operand::IndHighPlusC),
                 7 => Inst::Ld8(Operand::R8(Reg8::A), Operand::A16),
                 _ => unreachable!(),
             },

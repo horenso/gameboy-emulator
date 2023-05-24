@@ -64,6 +64,7 @@ pub enum Operand {
     R8(Reg8),      // 8-bit register
     R16(Reg16),    // 16-bit register
     IndR16(Reg16), // address that is stored the 16-bit register
+    IndHighPlusC,  // value at the address of 0xFF00 + register C
 }
 
 #[derive(PartialEq, Debug)]
