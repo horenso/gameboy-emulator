@@ -403,13 +403,17 @@ impl Cpu {
     fn add_sp(&mut self, bus: &mut Bus) {
         let data = self.read_next_8bit(bus) as i8;
         let data = data as i32;
-        // TODO: What happens when we overflow below 0?
-        let result = self.regs.sp as i32 + data;
-        self.regs.sp = if result < 0 { 0 } else { result as u16 };
+        let u16_data = data as u16;
+        let sp = self.regs.sp;
+        let result = (sp as i32).wrapping_add(data);
+        let u16_result = result as u16;
+        self.regs.sp = u16_result;
         self.regs.set_flag_zero(false);
         self.regs.set_flag_subtract(false);
-        self.regs.set_flag_half_carry(false); // TODO
-        self.regs.set_flag_carry(false); // TODO
+        self.regs
+            .set_flag_half_carry(((sp ^ u16_data ^ (u16_result & 0xFFFF)) & 0x10) == 0x10);
+        self.regs
+            .set_flag_carry(((sp ^ u16_data ^ (u16_result & 0xFFFF)) & 0x100) == 0x100);
     }
 
     fn sub_a(&mut self, bus: &mut Bus, operand: Operand, with_carry: bool, save_back: bool) {
@@ -499,13 +503,9 @@ impl Cpu {
     }
 
     fn dec16(&mut self, reg: Reg16) {
-        let data = self.get_reg16(&reg) as u32;
-        let sum = data.wrapping_sub(1);
-        let (carry, result) = split_u32(sum);
+        let data = self.get_reg16(&reg);
+        let result = data.wrapping_sub(1);
         self.set_reg16(&reg, result);
-        self.regs.set_flag_zero(result == 0);
-        self.regs.set_flag_subtract(true);
-        self.regs.set_flag_half_carry((data & 0x0F) + 1 > 0x0F);
     }
 
     fn rotate(&mut self, bus: &mut Bus, direction: Rotation, operand: Operand) {
