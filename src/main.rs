@@ -16,6 +16,7 @@ use cpu::Cpu;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::env::args;
+use std::io;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 use video::Video;

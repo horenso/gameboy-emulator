@@ -80,7 +80,7 @@ impl Cpu {
             Reg16::Hl => self.regs.set_hl(data),
             Reg16::Sp => self.regs.sp = data,
             Reg16::Pc => self.regs.pc = data,
-            Reg16::HlIncr | Reg16::HlDecr | Reg16::SpPlusD => unreachable!(),
+            Reg16::HlIncr | Reg16::HlDecr => unreachable!(),
         };
     }
 
@@ -102,7 +102,6 @@ impl Cpu {
             }
             Reg16::Sp => self.regs.sp,
             Reg16::Pc => self.regs.pc,
-            Reg16::SpPlusD => unreachable!(),
         }
     }
 
@@ -192,6 +191,7 @@ impl Cpu {
 
             Inst::Ld8(dest, source) => self.ld8(bus, dest, source),
             Inst::Ld16(dest, source) => self.ld16(bus, dest, source),
+            Inst::LdHlSp => self.ld_hl_sp_plus_offset(bus),
             Inst::Push(reg) => self.push(bus, reg),
             Inst::Pop(reg) => self.pop(bus, reg),
 
@@ -226,7 +226,7 @@ impl Cpu {
 
             Inst::DecimalAdjustA => self.decimal_adjust_a(),
             Inst::ComplementA => self.complement_a(),
-            Inst::SetCarryFlag => self.set_carry(),
+            Inst::SetCarryFlag => self.set_flag_carry(),
             Inst::ComplementCarryFlag => self.complement_carry_flag(),
         };
     }
@@ -301,6 +301,22 @@ impl Cpu {
         };
     }
 
+    fn ld_hl_sp_plus_offset(&mut self, bus: &mut Bus) {
+        let i8_offset = self.read_next_8bit(bus) as i8;
+        let i32_offset = i8_offset as i32;
+        let u16_offset = i8_offset as u16;
+        let sp = self.regs.sp;
+        let result = (sp as i32 + i32_offset) as u16;
+        self.regs.set_hl(result);
+
+        self.regs.set_flag_zero(false);
+        self.regs.set_flag_subtract(false);
+        self.regs
+            .set_flag_half_carry(((sp ^ u16_offset ^ (result & 0xFFFF)) & 0x10) == 0x10);
+        self.regs
+            .set_flag_carry(((sp ^ u16_offset ^ (result & 0xFFFF)) & 0x100) == 0x100);
+    }
+
     fn push(&mut self, bus: &mut Bus, reg: Reg16) {
         let (high, low) = split_u16(self.get_reg16(&reg));
         self.regs.sp -= 1;
@@ -365,11 +381,11 @@ impl Cpu {
         let sum = left + right + c;
         let (carry, result) = split_u16(sum);
         self.regs.a = result;
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(false);
+        self.regs.set_flag_zero(result == 0);
+        self.regs.set_flag_subtract(false);
         self.regs
-            .set_half_carry((left & 0xF) + (right & 0xF) + c > 0xF);
-        self.regs.set_carry(carry > 0);
+            .set_flag_half_carry((left & 0xF) + (right & 0xF) + c > 0xF);
+        self.regs.set_flag_carry(carry > 0);
     }
 
     fn add_hl(&mut self, reg: Reg16) {
@@ -378,21 +394,22 @@ impl Cpu {
         let sum = hl + data;
         let (carry, result) = split_u32(sum);
         self.regs.set_hl(result);
-        self.regs.set_subtract(false);
+        self.regs.set_flag_subtract(false);
         self.regs
-            .set_half_carry((data & 0xFFF) + (hl & 0xFFF) > 0xFFF);
-        self.regs.set_carry(carry > 0);
+            .set_flag_half_carry((data & 0xFFF) + (hl & 0xFFF) > 0xFFF);
+        self.regs.set_flag_carry(carry > 0);
     }
 
     fn add_sp(&mut self, bus: &mut Bus) {
-        let data = self.read_next_8bit(bus) as i16;
+        let data = self.read_next_8bit(bus) as i8;
+        let data = data as i32;
         // TODO: What happens when we overflow below 0?
-        let result = self.regs.sp as i16 + data;
+        let result = self.regs.sp as i32 + data;
         self.regs.sp = if result < 0 { 0 } else { result as u16 };
-        self.regs.set_zero(false);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(false); // TODO
-        self.regs.set_carry(false); // TODO
+        self.regs.set_flag_zero(false);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(false); // TODO
+        self.regs.set_flag_carry(false); // TODO
     }
 
     fn sub_a(&mut self, bus: &mut Bus, operand: Operand, with_carry: bool, save_back: bool) {
@@ -406,10 +423,11 @@ impl Cpu {
         let mut diff = left.wrapping_sub(right);
         diff = diff.wrapping_sub(c);
 
-        self.regs.set_zero(diff == 0);
-        self.regs.set_subtract(true);
-        self.regs.set_half_carry((left & 0xF) < ((right & 0xF) + c));
-        self.regs.set_carry(left < right + c);
+        self.regs.set_flag_zero(diff == 0);
+        self.regs.set_flag_subtract(true);
+        self.regs
+            .set_flag_half_carry((left & 0xF) < ((right & 0xF) + c));
+        self.regs.set_flag_carry(left < right + c);
         if save_back {
             self.regs.a = diff as u8;
         }
@@ -418,36 +436,36 @@ impl Cpu {
     fn and(&mut self, bus: &mut Bus, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         self.regs.a &= data;
-        self.regs.set_zero(self.regs.a == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(true);
-        self.regs.set_carry(false);
+        self.regs.set_flag_zero(self.regs.a == 0);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(true);
+        self.regs.set_flag_carry(false);
     }
 
     fn xor(&mut self, bus: &mut Bus, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         self.regs.a ^= data;
-        self.regs.set_zero(self.regs.a == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(false);
-        self.regs.set_carry(false);
+        self.regs.set_flag_zero(self.regs.a == 0);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(false);
+        self.regs.set_flag_carry(false);
     }
 
     fn or(&mut self, bus: &mut Bus, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         self.regs.a |= data;
-        self.regs.set_zero(self.regs.a == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(false);
-        self.regs.set_carry(false);
+        self.regs.set_flag_zero(self.regs.a == 0);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(false);
+        self.regs.set_flag_carry(false);
     }
 
     fn inc8(&mut self, bus: &mut Bus, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         let result = data.wrapping_add(1);
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry((data & 0x0F) + 1 > 0x0F);
+        self.regs.set_flag_zero(result == 0);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry((data & 0x0F) + 1 > 0x0F);
         match operand {
             Operand::IndR16(reg) => {
                 let addr = self.get_reg16(&reg);
@@ -467,9 +485,9 @@ impl Cpu {
     fn dec8(&mut self, bus: &mut Bus, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         let result = data.wrapping_sub(1);
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(true);
-        self.regs.set_half_carry(data & 0x0F == 0);
+        self.regs.set_flag_zero(result == 0);
+        self.regs.set_flag_subtract(true);
+        self.regs.set_flag_half_carry(data & 0x0F == 0);
         match operand {
             Operand::IndR16(reg) => {
                 let addr = self.get_reg16(&reg);
@@ -482,12 +500,12 @@ impl Cpu {
 
     fn dec16(&mut self, reg: Reg16) {
         let data = self.get_reg16(&reg) as u32;
-        let sum = data + 1;
+        let sum = data.wrapping_sub(1);
         let (carry, result) = split_u32(sum);
         self.set_reg16(&reg, result);
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(true);
-        self.regs.set_half_carry(carry & (1 << 11) == 1);
+        self.regs.set_flag_zero(result == 0);
+        self.regs.set_flag_subtract(true);
+        self.regs.set_flag_half_carry((data & 0x0F) + 1 > 0x0F);
     }
 
     fn rotate(&mut self, bus: &mut Bus, direction: Rotation, operand: Operand) {
@@ -513,12 +531,12 @@ impl Cpu {
             Rotation::RightCircular => (data.rotate_right(1), data & 1 != 0),
         };
         match operand {
-            Operand::R8(Reg8::A) => self.regs.set_zero(false),
-            _ => self.regs.set_zero(result == 0),
+            Operand::R8(Reg8::A) => self.regs.set_flag_zero(false),
+            _ => self.regs.set_flag_zero(result == 0),
         };
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(false);
-        self.regs.set_carry(carry);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(false);
+        self.regs.set_flag_carry(carry);
         self.set_8bit_operand(bus, &operand, result);
     }
 
@@ -529,46 +547,46 @@ impl Cpu {
             ShiftType::RightArithmetic => ((data >> 1) & 0b1000_0000, data & 1 != 0),
             ShiftType::RightLogic => (data >> 1, (data & 1) != 0),
         };
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(false);
-        self.regs.set_carry(carry);
+        self.regs.set_flag_zero(result == 0);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(false);
+        self.regs.set_flag_carry(carry);
         self.set_8bit_operand(bus, &operand, result);
     }
 
     fn swap(&mut self, bus: &mut Bus, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         let result = (data >> 4) | (data << 4);
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(false);
-        self.regs.set_carry(false);
+        self.regs.set_flag_zero(result == 0);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(false);
+        self.regs.set_flag_carry(false);
         self.set_8bit_operand(bus, &operand, result);
     }
 
     fn test_bit(&mut self, bus: &Bus, amount: u8, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         let result = data | (1 << amount);
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(true);
+        self.regs.set_flag_zero(result == 0);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(true);
     }
 
     fn reset_bit(&mut self, bus: &mut Bus, amount: u8, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         let result = data & !(1 << amount);
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(true);
+        self.regs.set_flag_zero(result == 0);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(true);
         self.set_8bit_operand(bus, &operand, result);
     }
 
     fn set_bit(&mut self, bus: &mut Bus, amount: u8, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         let result = data | (1 << amount);
-        self.regs.set_zero(result == 0);
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(true);
+        self.regs.set_flag_zero(result == 0);
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(true);
         self.set_8bit_operand(bus, &operand, result);
     }
 
@@ -583,29 +601,29 @@ impl Cpu {
         } else {
             if self.regs.carry_flag() || self.regs.a > 0x99 {
                 self.regs.a = self.regs.a.wrapping_add(0x60);
-                self.regs.set_carry(true);
+                self.regs.set_flag_carry(true);
             }
             if self.regs.half_carry_flag() || (self.regs.a & 0x0F) > 0x09 {
                 self.regs.a = self.regs.a.wrapping_add(0x6);
             }
         }
-        self.regs.set_zero(self.regs.a == 0);
-        self.regs.set_half_carry(false);
+        self.regs.set_flag_zero(self.regs.a == 0);
+        self.regs.set_flag_half_carry(false);
     }
 
     fn complement_a(&mut self) {
         self.regs.a = !self.regs.a;
-        self.regs.set_subtract(true);
-        self.regs.set_half_carry(true);
+        self.regs.set_flag_subtract(true);
+        self.regs.set_flag_half_carry(true);
     }
 
-    fn set_carry(&mut self) {
-        self.regs.set_carry(true);
+    fn set_flag_carry(&mut self) {
+        self.regs.set_flag_carry(true);
     }
 
     fn complement_carry_flag(&mut self) {
-        self.regs.set_subtract(false);
-        self.regs.set_half_carry(false);
-        self.regs.set_carry(!self.regs.carry_flag())
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(false);
+        self.regs.set_flag_carry(!self.regs.carry_flag())
     }
 }

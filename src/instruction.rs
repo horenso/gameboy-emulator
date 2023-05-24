@@ -12,6 +12,7 @@ pub enum Inst {
     // Load and stack operations
     Ld8(Operand, Operand),
     Ld16(Operand, Operand),
+    LdHlSp,
     Push(Reg16),
     Pop(Reg16),
 
@@ -109,6 +110,5 @@ pub enum Reg16 {
     HlIncr,
     HlDecr,
     Sp,
-    SpPlusD,
     Pc,
 }

@@ -105,7 +105,7 @@ impl Registers {
         self.f & Flag::Carry as u8 != 0
     }
 
-    pub fn set_zero(&mut self, zero: bool) {
+    pub fn set_flag_zero(&mut self, zero: bool) {
         if zero {
             self.f |= Flag::Zero as u8;
         } else {
@@ -113,7 +113,7 @@ impl Registers {
         }
     }
 
-    pub fn set_subtract(&mut self, subtract: bool) {
+    pub fn set_flag_subtract(&mut self, subtract: bool) {
         if subtract {
             self.f |= Flag::Subtraction as u8;
         } else {
@@ -121,7 +121,7 @@ impl Registers {
         }
     }
 
-    pub fn set_half_carry(&mut self, half_carry: bool) {
+    pub fn set_flag_half_carry(&mut self, half_carry: bool) {
         if half_carry {
             self.f |= Flag::HalfCarry as u8;
         } else {
@@ -129,7 +129,7 @@ impl Registers {
         }
     }
 
-    pub fn set_carry(&mut self, carry: bool) {
+    pub fn set_flag_carry(&mut self, carry: bool) {
         if carry {
             self.f |= Flag::Carry as u8;
         } else {

@@ -57,7 +57,7 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
                 4 => Inst::Ld8(Operand::A8, Operand::R8(Reg8::A)),
                 5 => Inst::AddSp,
                 6 => Inst::Ld8(Operand::R8(Reg8::A), Operand::A8),
-                7 => Inst::Ld8(Operand::R16(Reg16::Hl), Operand::R16(Reg16::SpPlusD)),
+                7 => Inst::LdHlSp,
                 _ => unreachable!(),
             },
             1 if q == 0 => Inst::Pop(rp2_table(p)),
