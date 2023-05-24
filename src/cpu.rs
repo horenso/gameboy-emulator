@@ -199,7 +199,7 @@ impl Cpu {
             Inst::Jp(cond, dest) => self.jp(bus, cond, dest),
             Inst::Call(cond) => self.call(bus, cond),
             Inst::Ret(cond) => self.ret(bus, cond),
-            Inst::Reti => self.reti(),
+            Inst::Reti => self.reti(bus),
             Inst::Rst(amount) => self.rst(amount),
 
             Inst::Add(operand) => self.add_a(bus, operand, false),
@@ -366,7 +366,10 @@ impl Cpu {
         }
     }
 
-    fn reti(&self) {}
+    fn reti(&mut self, bus: &mut Bus) {
+        // TODO: Enable interrupts here
+        self.ret(bus, Cond::Always);
+    }
 
     fn rst(&self, amount: u8) {}
 
@@ -426,14 +429,15 @@ impl Cpu {
         };
         let mut diff = left.wrapping_sub(right);
         diff = diff.wrapping_sub(c);
+        let result = diff as u8;
 
-        self.regs.set_flag_zero(diff == 0);
+        self.regs.set_flag_zero(result == 0);
         self.regs.set_flag_subtract(true);
         self.regs
             .set_flag_half_carry((left & 0xF) < ((right & 0xF) + c));
         self.regs.set_flag_carry(left < right + c);
         if save_back {
-            self.regs.a = diff as u8;
+            self.regs.a = result;
         }
     }
 
