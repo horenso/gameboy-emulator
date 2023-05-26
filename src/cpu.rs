@@ -575,7 +575,7 @@ impl Cpu {
 
     fn test_bit(&mut self, bus: &Bus, index: u8, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
-        let result = data | (1 << index);
+        let result = data & (1 << index);
         self.regs.set_flag_zero(result == 0);
         self.regs.set_flag_subtract(false);
         self.regs.set_flag_half_carry(true);
@@ -584,18 +584,12 @@ impl Cpu {
     fn reset_bit(&mut self, bus: &mut Bus, index: u8, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         let result = data & !(1 << index);
-        self.regs.set_flag_zero(result == 0);
-        self.regs.set_flag_subtract(false);
-        self.regs.set_flag_half_carry(true);
         self.set_8bit_operand(bus, &operand, result);
     }
 
     fn set_bit(&mut self, bus: &mut Bus, index: u8, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
         let result = data | (1 << index);
-        self.regs.set_flag_zero(result == 0);
-        self.regs.set_flag_subtract(false);
-        self.regs.set_flag_half_carry(true);
         self.set_8bit_operand(bus, &operand, result);
     }
 
