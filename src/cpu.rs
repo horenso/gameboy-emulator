@@ -630,6 +630,8 @@ impl Cpu {
     }
 
     fn set_flag_carry(&mut self) {
+        self.regs.set_flag_subtract(false);
+        self.regs.set_flag_half_carry(false);
         self.regs.set_flag_carry(true);
     }
 
