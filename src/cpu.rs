@@ -217,7 +217,7 @@ impl Cpu {
             Inst::Dec8(operand) => self.dec8(bus, operand),
             Inst::Dec16(reg) => self.dec16(reg),
 
-            Inst::Rotate(rotation, operand) => self.rotate(bus, rotation, operand),
+            Inst::Rotate(rot, operand, set_zero) => self.rotate(bus, rot, operand, set_zero),
             Inst::Shift(shift, operand) => self.shift(bus, shift, operand),
             Inst::Swap(operand) => self.swap(bus, operand),
             Inst::TestBit(amount, operand) => self.test_bit(bus, amount, operand),
@@ -234,15 +234,15 @@ impl Cpu {
     fn halt(&self) {}
 
     fn stop(&self) {
-        panic!("STOPPPPP");
+        // println!("STOPPPPP");
     }
 
     fn di(&self) {
-        // panic!("diiiii");
+        // println!("diiiii");
     }
 
     fn ei(&self) {
-        // panic!("eiiiii");
+        // println!("eiiiii");
     }
 
     fn ld8(&mut self, bus: &mut Bus, dest: Operand, source: Operand) {
@@ -520,7 +520,7 @@ impl Cpu {
         self.set_reg16(&reg, result);
     }
 
-    fn rotate(&mut self, bus: &mut Bus, direction: Rotation, operand: Operand) {
+    fn rotate(&mut self, bus: &mut Bus, direction: Rotation, operand: Operand, set_zero: bool) {
         let data = self.get_8bit_operand(bus, &operand);
         let (result, carry) = match direction {
             Rotation::LeftThroughCarry => {
@@ -542,10 +542,7 @@ impl Cpu {
             }
             Rotation::RightCircular => (data.rotate_right(1), data & 1 != 0),
         };
-        match operand {
-            Operand::R8(Reg8::A) => self.regs.set_flag_zero(false),
-            _ => self.regs.set_flag_zero(result == 0),
-        };
+        self.regs.set_flag_zero(set_zero && result == 0);
         self.regs.set_flag_subtract(false);
         self.regs.set_flag_half_carry(false);
         self.regs.set_flag_carry(carry);
@@ -556,8 +553,8 @@ impl Cpu {
         let data = self.get_8bit_operand(bus, &operand);
         let (result, carry) = match shift {
             ShiftType::LeftArithmetic => ((data << 1), data & 0b1000_0000 != 0),
-            ShiftType::RightArithmetic => ((data >> 1) & 0b1000_0000, data & 1 != 0),
-            ShiftType::RightLogic => (data >> 1, (data & 1) != 0),
+            ShiftType::RightArithmetic => ((data >> 1) | (data & 0b1000_0000), data & 1 != 0),
+            ShiftType::RightLogic => (data >> 1, data & 1 != 0),
         };
         self.regs.set_flag_zero(result == 0);
         self.regs.set_flag_subtract(false);

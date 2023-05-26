@@ -36,10 +36,10 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
             5 => Inst::Dec8(operand(y)),
             6 => Inst::Ld8(operand(y), Operand::D8),
             7 => match y {
-                0 => Inst::Rotate(Rotation::LeftCircular, Operand::R8(Reg8::A)),
-                1 => Inst::Rotate(Rotation::RightCircular, Operand::R8(Reg8::A)),
-                2 => Inst::Rotate(Rotation::LeftThroughCarry, Operand::R8(Reg8::A)),
-                3 => Inst::Rotate(Rotation::RightThroughCarry, Operand::R8(Reg8::A)),
+                0 => Inst::Rotate(Rotation::LeftCircular, Operand::R8(Reg8::A), false),
+                1 => Inst::Rotate(Rotation::RightCircular, Operand::R8(Reg8::A), false),
+                2 => Inst::Rotate(Rotation::LeftThroughCarry, Operand::R8(Reg8::A), false),
+                3 => Inst::Rotate(Rotation::RightThroughCarry, Operand::R8(Reg8::A), false),
                 4 => Inst::DecimalAdjustA,
                 5 => Inst::ComplementA,
                 6 => Inst::SetCarryFlag,
@@ -174,10 +174,10 @@ pub fn decode_prefixed(opcode: u8) -> Inst {
     let z = opcode & 0b00000111;
     let operand = operand(z);
     match opcode {
-        0x00..=0x07 => Inst::Rotate(Rotation::LeftCircular, operand),
-        0x08..=0x0F => Inst::Rotate(Rotation::RightCircular, operand),
-        0x10..=0x17 => Inst::Rotate(Rotation::LeftThroughCarry, operand),
-        0x18..=0x1F => Inst::Rotate(Rotation::RightThroughCarry, operand),
+        0x00..=0x07 => Inst::Rotate(Rotation::LeftCircular, operand, true),
+        0x08..=0x0F => Inst::Rotate(Rotation::RightCircular, operand, true),
+        0x10..=0x17 => Inst::Rotate(Rotation::LeftThroughCarry, operand, true),
+        0x18..=0x1F => Inst::Rotate(Rotation::RightThroughCarry, operand, true),
         0x20..=0x27 => Inst::Shift(ShiftType::LeftArithmetic, operand),
         0x28..=0x2F => Inst::Shift(ShiftType::RightArithmetic, operand),
         0x30..=0x37 => Inst::Swap(operand),

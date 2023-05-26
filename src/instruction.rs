@@ -41,7 +41,7 @@ pub enum Inst {
     Dec16(Reg16),
 
     // Rotations and shifts
-    Rotate(Rotation, Operand),
+    Rotate(Rotation, Operand, bool), // bool: whether the zero flag is set
     Shift(ShiftType, Operand),
     Swap(Operand),
     TestBit(u8, Operand),
@@ -69,10 +69,10 @@ pub enum Operand {
 
 #[derive(PartialEq, Debug)]
 pub enum Rotation {
-    LeftThroughCarry, // The RR instuctions
-    LeftCircular,     // The RRC instructions
-    RightThroughCarry,
-    RightCircular,
+    LeftThroughCarry,  // RR
+    LeftCircular,      // RRC
+    RightThroughCarry, // RL
+    RightCircular,     // RLC
 }
 
 #[derive(PartialEq, Debug)]

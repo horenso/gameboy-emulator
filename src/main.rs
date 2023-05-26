@@ -37,7 +37,7 @@ fn main() -> Result<(), String> {
     let mut is_paused = false;
     let mut show = true;
 
-    // cpu.debug_print(&bus, &mut io::stdout());
+    cpu.debug_print(&bus, &mut io::stdout());
     'main_loop: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -64,7 +64,7 @@ fn main() -> Result<(), String> {
         }
 
         cpu.fetch_and_execute(&mut bus);
-        // cpu.debug_print(&bus, &mut io::stdout());
+        cpu.debug_print(&bus, &mut io::stdout());
 
         if show && bus.v_ram_dirty {
             let now = Instant::now();
@@ -73,7 +73,7 @@ fn main() -> Result<(), String> {
             bus.v_ram_dirty = false;
 
             let elapsed = now.elapsed();
-            println!("Elapsed: {:.2?}", elapsed);
+            eprintln!("Elapsed: {:.2?}", elapsed);
         }
 
         // sleep(Duration::from_millis(5));
