@@ -220,9 +220,9 @@ impl Cpu {
             Inst::Rotate(rot, operand, set_zero) => self.rotate(bus, rot, operand, set_zero),
             Inst::Shift(shift, operand) => self.shift(bus, shift, operand),
             Inst::Swap(operand) => self.swap(bus, operand),
-            Inst::TestBit(amount, operand) => self.test_bit(bus, amount, operand),
-            Inst::ResetBit(amount, operand) => self.reset_bit(bus, amount, operand),
-            Inst::SetBit(amount, operand) => self.set_bit(bus, amount, operand),
+            Inst::TestBit(index, operand) => self.test_bit(bus, index, operand),
+            Inst::ResetBit(index, operand) => self.reset_bit(bus, index, operand),
+            Inst::SetBit(index, operand) => self.set_bit(bus, index, operand),
 
             Inst::DecimalAdjustA => self.decimal_adjust_a(),
             Inst::ComplementA => self.complement_a(),
@@ -573,26 +573,26 @@ impl Cpu {
         self.set_8bit_operand(bus, &operand, result);
     }
 
-    fn test_bit(&mut self, bus: &Bus, amount: u8, operand: Operand) {
+    fn test_bit(&mut self, bus: &Bus, index: u8, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
-        let result = data | (1 << amount);
+        let result = data | (1 << index);
         self.regs.set_flag_zero(result == 0);
         self.regs.set_flag_subtract(false);
         self.regs.set_flag_half_carry(true);
     }
 
-    fn reset_bit(&mut self, bus: &mut Bus, amount: u8, operand: Operand) {
+    fn reset_bit(&mut self, bus: &mut Bus, index: u8, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
-        let result = data & !(1 << amount);
+        let result = data & !(1 << index);
         self.regs.set_flag_zero(result == 0);
         self.regs.set_flag_subtract(false);
         self.regs.set_flag_half_carry(true);
         self.set_8bit_operand(bus, &operand, result);
     }
 
-    fn set_bit(&mut self, bus: &mut Bus, amount: u8, operand: Operand) {
+    fn set_bit(&mut self, bus: &mut Bus, index: u8, operand: Operand) {
         let data = self.get_8bit_operand(bus, &operand);
-        let result = data | (1 << amount);
+        let result = data | (1 << index);
         self.regs.set_flag_zero(result == 0);
         self.regs.set_flag_subtract(false);
         self.regs.set_flag_half_carry(true);
