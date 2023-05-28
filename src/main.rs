@@ -35,9 +35,12 @@ fn main() -> Result<(), String> {
 
     let mut event_pump = sdl_context.event_pump()?;
     let mut is_paused = false;
-    let mut show = true;
+    let mut show_background = false;
+    let print_cpu_debug = false;
 
-    cpu.debug_print(&bus, &mut io::stdout());
+    if print_cpu_debug {
+        cpu.debug_print(&bus, &mut io::stdout());
+    }
     'main_loop: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -52,7 +55,7 @@ fn main() -> Result<(), String> {
                             println!("Paused!")
                         }
                     }
-                    Keycode::D => show = !show,
+                    Keycode::D => show_background = !show_background,
                     _ => (),
                 },
                 _ => (),
@@ -64,9 +67,11 @@ fn main() -> Result<(), String> {
         }
 
         cpu.fetch_and_execute(&mut bus);
-        cpu.debug_print(&bus, &mut io::stdout());
+        if print_cpu_debug {
+            cpu.debug_print(&bus, &mut io::stdout());
+        }
 
-        if show && bus.v_ram_dirty {
+        if show_background && bus.v_ram_dirty {
             let now = Instant::now();
 
             video.draw(&bus);

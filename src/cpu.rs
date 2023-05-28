@@ -8,7 +8,8 @@ use crate::registers::Registers;
 
 pub struct Cpu {
     regs: Registers,
-    interrupt_master_enable: bool,
+    interrupt_master_enabled: bool,
+    interrupt_flags: u8,
     pub counter: u64, // count number of executed instructions
 }
 
@@ -16,7 +17,8 @@ impl Cpu {
     pub fn new() -> Cpu {
         Cpu {
             regs: Registers::new(),
-            interrupt_master_enable: false,
+            interrupt_master_enabled: false,
+            interrupt_flags: 0,
             counter: 0,
         }
     }
