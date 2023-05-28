@@ -5,7 +5,7 @@ pub struct Cartridge {
 }
 
 impl Cartridge {
-    pub fn load_from_file(cartridge_path: String) -> Result<Cartridge, String> {
+    pub fn load_from_file(cartridge_path: &str) -> Result<Cartridge, String> {
         let mut file = File::open(cartridge_path).map_err(|e| e.to_string())?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).map_err(|e| e.to_string())?;

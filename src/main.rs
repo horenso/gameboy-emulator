@@ -12,20 +12,36 @@ mod video;
 
 use bus::Bus;
 use cartridge::Cartridge;
+use clap::Parser;
 use cpu::Cpu;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use std::env::args;
 use std::io;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 use video::Video;
 
+#[derive(Parser)]
+#[command(author)]
+struct Args {
+    /// Dump the cpu state after each instruction
+    #[arg(short = 'd', long = "debug-print")]
+    debug_print: bool,
+
+    /// Draw background and tile data
+    #[arg(short = 'b', long = "draw-bg", default_value_t = false)]
+    draw_background: bool,
+
+    /// The path to the rom
+    rom_path: std::path::PathBuf,
+}
+
 fn main() -> Result<(), String> {
-    let cartridge_path_arg = args()
-        .nth(1)
-        .unwrap_or("Expected one argument with the path to the cartridge.".to_string());
-    let cartridge = Cartridge::load_from_file(cartridge_path_arg.clone())?;
+    let args = Args::parse();
+
+    let cartridge = Cartridge::load_from_file(args.rom_path.to_str().unwrap())?;
+    let print_cpu_debug = args.debug_print;
+    let mut show_background = args.draw_background;
 
     let mut bus = Bus::new(cartridge);
     let mut cpu = Cpu::new();
@@ -35,8 +51,6 @@ fn main() -> Result<(), String> {
 
     let mut event_pump = sdl_context.event_pump()?;
     let mut is_paused = false;
-    let mut show_background = false;
-    let print_cpu_debug = false;
 
     if print_cpu_debug {
         cpu.debug_print(&bus, &mut io::stdout());

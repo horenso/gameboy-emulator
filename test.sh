@@ -3,4 +3,4 @@
 padded=$(printf "%02d" ${1})
 
 cd gameboy-doctor
-cargo run --release ../cartridges/${padded}.gb | ./gameboy-doctor - cpu_instrs ${1}
+cargo run --release -- --debug-print ../cartridges/${padded}.gb | ./gameboy-doctor - cpu_instrs ${1}
