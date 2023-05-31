@@ -2,34 +2,16 @@ use std::io::Write;
 
 use super::decode::{decode_prefixed, decode_unprefixed};
 use super::instruction::*;
+use super::interrupts::InterruptHandler;
 use super::registers::Registers;
 use crate::bus::Bus;
 use crate::util::helper::{combine_to_u16, split_u16, split_u32};
 
-#[repr(u16)]
-enum Interrupt {
-    VBlank = 0x40,
-    LcdStat = 0x48,
-    Timer = 0x50,
-    Serial = 0x58,
-    Joypad = 0x60,
-}
-
-#[repr(u8)]
-enum InterruptBit {
-    VBlank = 1,
-    LcdStat = 2,
-    Timer = 4,
-    Serial = 8,
-    Joypad = 16,
-}
-
 pub struct Cpu {
-    regs: Registers,
-    interrupt_flags: u8,
-    is_halted: bool,
+    pub(super) regs: Registers,
+    pub(crate) is_halted: bool,
+    pub(crate) interrupt_handler: InterruptHandler,
 
-    pub(crate) interrupt_master_enabled: bool,
     pub(crate) divider: u16,
     pub(crate) counter: u64, // count number of executed instructions
 }
@@ -38,17 +20,22 @@ impl Cpu {
     pub fn new() -> Cpu {
         Cpu {
             regs: Registers::new(),
-            interrupt_flags: 0,
+            interrupt_handler: InterruptHandler::new(),
             is_halted: false,
-            interrupt_master_enabled: false,
             divider: 0,
             counter: 0,
         }
     }
 
     pub fn fetch_and_execute(&mut self, bus: &mut Bus) {
-        self.handle_interrupts(bus);
+        let maybe_jump_address = self.interrupt_handler.handle_interrupts();
+        if let Some(jump_address) = maybe_jump_address {
+            self.is_halted = false;
+            self.push_stack(bus, Reg16::Pc);
+            self.regs.pc = jump_address;
+        }
         if self.is_halted {
+            eprintln!("Cpu is halted");
             return;
         }
 
@@ -56,24 +43,8 @@ impl Cpu {
         self.execute(bus, inst);
     }
 
-    fn handle_interrupts(&mut self, bus: &mut Bus) {
-        if !self.interrupt_master_enabled || self.interrupt_flags == 0 {
-            return;
-        }
-
-        self.push_stack(bus, Reg16::Pc);
-
-        if self.interrupt_flags & InterruptBit::VBlank as u8 != 0 {
-            self.regs.pc = Interrupt::VBlank as u16;
-        } else if self.interrupt_flags & InterruptBit::LcdStat as u8 != 0 {
-            self.regs.pc = Interrupt::LcdStat as u16;
-        } else if self.interrupt_flags & InterruptBit::Timer as u8 != 0 {
-            self.regs.pc = Interrupt::Timer as u16;
-        } else if self.interrupt_flags & InterruptBit::Serial as u8 != 0 {
-            self.regs.pc = Interrupt::Serial as u16;
-        } else if self.interrupt_flags & InterruptBit::Joypad as u8 != 0 {
-            self.regs.pc = Interrupt::Joypad as u16;
-        }
+    pub fn set_interrupt_flag(&mut self, data: u8) {
+        self.interrupt_handler.flags = data & 0b0001_1111;
     }
 
     fn read_next_8bit(&mut self, bus: &Bus) -> u8 {
@@ -288,11 +259,13 @@ impl Cpu {
     }
 
     fn di(&mut self) {
-        self.interrupt_master_enabled = false;
+        eprintln!("di!");
+        self.interrupt_handler.master_enabled = false;
     }
 
     fn ei(&mut self) {
-        self.interrupt_master_enabled = true;
+        eprintln!("ei!");
+        self.interrupt_handler.master_enabled = true;
     }
 
     fn ld8(&mut self, bus: &mut Bus, dest: Operand, source: Operand) {
@@ -423,7 +396,7 @@ impl Cpu {
 
     fn reti(&mut self, bus: &mut Bus) {
         self.ret(bus, Cond::Always);
-        self.interrupt_master_enabled = true;
+        self.interrupt_handler.master_enabled = true;
     }
 
     fn rst(&mut self, bus: &mut Bus, offset: u8) {

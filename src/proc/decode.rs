@@ -1,4 +1,4 @@
-use crate::cpu::instruction::*;
+use super::instruction::*;
 
 pub fn decode_unprefixed(opcode: u8) -> Inst {
     let x = opcode >> 6;

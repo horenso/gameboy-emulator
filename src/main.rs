@@ -3,14 +3,14 @@
 // TODO: Figure out how to properly structure Rust project.
 mod bus;
 mod cartridge;
-mod cpu;
+mod proc;
 mod util;
 mod video;
 
 use bus::Bus;
 use cartridge::Cartridge;
 use clap::Parser;
-use cpu::core::Cpu;
+use proc::cpu::Cpu;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::io;

@@ -1,5 +1,5 @@
 use crate::cartridge::Cartridge;
-use crate::cpu::core::Cpu;
+use crate::proc::cpu::Cpu;
 use crate::util::helper::split_u16;
 
 const V_RAM_SIZE: usize = 8192;
@@ -66,7 +66,7 @@ impl Bus {
                 self.h_ram[h_ram_address]
             }
             INT_MASTER_ENABLED => {
-                if cpu.interrupt_master_enabled {
+                if cpu.interrupt_handler.master_enabled {
                     1
                 } else {
                     0
@@ -112,6 +112,7 @@ impl Bus {
                 self.h_ram[h_ram_address] = data
             }
             0xFFFF => {
+                cpu.set_interrupt_flag(data);
                 eprintln!("Writting to FFFF to enable {}", data);
                 // TODO interrupts (write only)
             }

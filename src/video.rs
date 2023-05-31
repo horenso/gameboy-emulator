@@ -7,7 +7,7 @@ use sdl2::{
 };
 
 use crate::bus::Bus;
-use crate::cpu::core::Cpu;
+use crate::proc::cpu::Cpu;
 
 // grid of 20x20 8x8 tiles with 3 color channels
 const TILE_DATA_SIZE: usize = 20 * 20 * 8 * 8 * 3;
