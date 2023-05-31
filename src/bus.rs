@@ -1,5 +1,5 @@
 use crate::cartridge::Cartridge;
-use crate::cpu::cpu::Cpu;
+use crate::cpu::core::Cpu;
 use crate::util::helper::split_u16;
 
 const V_RAM_SIZE: usize = 8192;

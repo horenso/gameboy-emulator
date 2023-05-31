@@ -156,19 +156,19 @@ impl Cpu {
     }
 
     fn load_indr(&mut self, bus: &Bus, reg: &Reg16) -> u8 {
-        let addr = self.get_reg16(&reg);
+        let addr = self.get_reg16(reg);
         bus.read(self, addr)
     }
 
     fn save_indr(&mut self, bus: &mut Bus, reg: &Reg16, data: u8) {
-        let addr = self.get_reg16(&reg);
+        let addr = self.get_reg16(reg);
         bus.write(self, addr, data);
     }
 
     fn get_8bit_operand(&mut self, bus: &Bus, operand: &Operand) -> u8 {
         match operand {
             Operand::D8 => self.read_next_8bit(bus),
-            Operand::R8(reg) => self.get_reg8(&reg),
+            Operand::R8(reg) => self.get_reg8(reg),
             Operand::IndR16(reg) => self.load_indr(bus, reg),
             _ => unreachable!(),
         }
@@ -367,9 +367,9 @@ impl Cpu {
         self.regs.set_flag_zero(false);
         self.regs.set_flag_subtract(false);
         self.regs
-            .set_flag_half_carry(((sp ^ u16_offset ^ (result & 0xFFFF)) & 0x10) == 0x10);
+            .set_flag_half_carry(((sp ^ u16_offset ^ result) & 0x10) == 0x10);
         self.regs
-            .set_flag_carry(((sp ^ u16_offset ^ (result & 0xFFFF)) & 0x100) == 0x100);
+            .set_flag_carry(((sp ^ u16_offset ^ result) & 0x100) == 0x100);
     }
 
     fn push_stack(&mut self, bus: &mut Bus, reg: Reg16) {
@@ -472,9 +472,9 @@ impl Cpu {
         self.regs.set_flag_zero(false);
         self.regs.set_flag_subtract(false);
         self.regs
-            .set_flag_half_carry(((sp ^ u16_data ^ (u16_result & 0xFFFF)) & 0x10) == 0x10);
+            .set_flag_half_carry(((sp ^ u16_data ^ u16_result) & 0x10) == 0x10);
         self.regs
-            .set_flag_carry(((sp ^ u16_data ^ (u16_result & 0xFFFF)) & 0x100) == 0x100);
+            .set_flag_carry(((sp ^ u16_data ^ u16_result) & 0x100) == 0x100);
     }
 
     fn sub_a(&mut self, bus: &mut Bus, operand: Operand, with_carry: bool, save_back: bool) {
@@ -535,9 +535,9 @@ impl Cpu {
         match operand {
             Operand::IndR16(reg) => {
                 let addr = self.get_reg16(&reg);
-                bus.write(self, addr, result as u8);
+                bus.write(self, addr, result);
             }
-            Operand::R8(reg) => self.set_reg8(&reg, result as u8),
+            Operand::R8(reg) => self.set_reg8(&reg, result),
             _ => unreachable!(),
         }
     }

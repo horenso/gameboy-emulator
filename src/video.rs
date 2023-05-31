@@ -7,7 +7,7 @@ use sdl2::{
 };
 
 use crate::bus::Bus;
-use crate::cpu::cpu::Cpu;
+use crate::cpu::core::Cpu;
 
 // grid of 20x20 8x8 tiles with 3 color channels
 const TILE_DATA_SIZE: usize = 20 * 20 * 8 * 8 * 3;
@@ -21,7 +21,7 @@ pub struct Video<'a> {
 }
 
 impl Video<'_> {
-    pub fn new<'a>(sdl_context: &'a Sdl) -> Video<'a> {
+    pub fn new(sdl_context: &Sdl) -> Video {
         let video_subsystem = sdl_context.video().unwrap();
 
         let window = video_subsystem
@@ -49,13 +49,13 @@ impl Video<'_> {
 
         // let tile_data_texture_creator = tile_data_canvas.texture_creator();
 
-        return Video {
+        Video {
             sdl_context,
             canvas,
             texture_creator,
             tile_data: [0x40; TILE_DATA_SIZE],
             // tile_data_canvas,
-        };
+        }
     }
 
     fn update_tile_data(&mut self, bus: &Bus, cpu: &Cpu) {
@@ -129,7 +129,7 @@ fn draw_tile_into_texture(
             let higher = ((byte1 >> shift) & 1) << 1;
             let lower = (byte2 >> shift) & 1;
             let color_id = higher | lower;
-            let pos_x = (7 - shift + (start_x as i32)) as usize;
+            let pos_x = (7 - shift + start_x) as usize;
             let pos_y = (pixel_y + start_y) as usize;
             let pos_buf = (pos_y * 160 + pos_x) * 3;
             match color_id {

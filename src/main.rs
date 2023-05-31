@@ -10,7 +10,7 @@ mod video;
 use bus::Bus;
 use cartridge::Cartridge;
 use clap::Parser;
-use cpu::cpu::Cpu;
+use cpu::core::Cpu;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::io;
