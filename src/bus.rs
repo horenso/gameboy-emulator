@@ -1,4 +1,6 @@
-use crate::{cartridge::Cartridge, cpu::Cpu};
+use crate::cartridge::Cartridge;
+use crate::cpu::cpu::Cpu;
+use crate::util::helper::split_u16;
 
 const V_RAM_SIZE: usize = 8192;
 const W_RAM_SIZE: usize = 8192;
@@ -20,12 +22,13 @@ const IO_REGS_END: u16 = 0xFF70;
 const H_RAM_START: u16 = 0xFF80;
 const H_RAM_END: u16 = 0xFFFE;
 
+const INT_MASTER_ENABLED: u16 = 0xFFFF;
+
 pub struct Bus {
     cartridge: Cartridge,
-    v_ram: [u8; V_RAM_SIZE],     // video ram
-    w_ram: [u8; W_RAM_SIZE],     // work ram
-    io_regs: [u8; IO_REGS_SIZE], // I/O registers like the Joypad
-    h_ram: [u8; H_RAM_SIZE],     // high ram
+    v_ram: [u8; V_RAM_SIZE], // video ram
+    w_ram: [u8; W_RAM_SIZE], // work ram
+    h_ram: [u8; H_RAM_SIZE], // high ram
     pub v_ram_dirty: bool,
 }
 
@@ -35,14 +38,13 @@ impl Bus {
             cartridge,
             v_ram: [0; V_RAM_SIZE],
             w_ram: [0; W_RAM_SIZE],
-            io_regs: [0; IO_REGS_SIZE],
             h_ram: [0; H_RAM_SIZE],
             v_ram_dirty: false,
         }
     }
 
     // https://gbdev.io/pandocs/Memory_Map.html
-    pub fn read(&self, address: u16, cpu: &Cpu) -> u8 {
+    pub fn read(&self, cpu: &Cpu, address: u16) -> u8 {
         // println!("Reading bus at {:#x}", address);
         match address {
             CART_START..=CART_END => self.cartridge.read(address as usize),
@@ -56,8 +58,8 @@ impl Bus {
             }
             0xFF44 => 0x90, // TODO: Remove this, this is for Gameboy Doctor
             IO_REGS_START..=IO_REGS_END => {
-                let io_regs_address = (address - IO_REGS_START) as usize;
-                self.io_regs[io_regs_address]
+                let (_, lower) = split_u16(address);
+                self.read_mapped_io_register(cpu, lower)
             }
             H_RAM_START..=H_RAM_END => {
                 let h_ram_address = (address - H_RAM_START) as usize;
@@ -74,7 +76,21 @@ impl Bus {
         }
     }
 
-    pub fn write(&mut self, address: u16, data: u8) {
+    fn read_mapped_io_register(&self, cpu: &Cpu, offset: u8) -> u8 {
+        match offset {
+            0 => 0,
+            4 => {
+                let (high, _) = split_u16(cpu.divider);
+                high
+            }
+            _ => {
+                eprintln!("{} is not mapped yet!", offset);
+                0
+            }
+        }
+    }
+
+    pub fn write(&mut self, cpu: &mut Cpu, address: u16, data: u8) {
         // println!("Writing to address: {:#x} data: {:#x}", address, data);
         match address {
             CART_START..=CART_END => (),
@@ -88,8 +104,8 @@ impl Bus {
                 self.w_ram[h_ram_address] = data
             }
             IO_REGS_START..=IO_REGS_END => {
-                let io_regs_address = (address - IO_REGS_START) as usize;
-                self.io_regs[io_regs_address] = data
+                let (_, lower) = split_u16(address);
+                self.write_mapped_io_register(cpu, lower);
             }
             H_RAM_START..=H_RAM_END => {
                 let h_ram_address = (address - H_RAM_START) as usize;
@@ -100,6 +116,13 @@ impl Bus {
                 // TODO interrupts (write only)
             }
             _ => unreachable!(),
+        }
+    }
+
+    fn write_mapped_io_register(&self, cpu: &mut Cpu, offset: u8) {
+        match offset {
+            4 => cpu.divider = 0,
+            _ => eprintln!("{} is not mapped yet!", offset),
         }
     }
 }

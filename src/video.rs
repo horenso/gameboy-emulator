@@ -1,12 +1,13 @@
 use sdl2::{
-    pixels::{Color, PixelFormatEnum},
+    pixels::PixelFormatEnum,
     rect::Rect,
-    render::{Texture, TextureCreator, WindowCanvas},
+    render::{TextureCreator, WindowCanvas},
     video::WindowContext,
     Sdl,
 };
 
-use crate::{bus::Bus, cpu::Cpu};
+use crate::bus::Bus;
+use crate::cpu::cpu::Cpu;
 
 // grid of 20x20 8x8 tiles with 3 color channels
 const TILE_DATA_SIZE: usize = 20 * 20 * 8 * 8 * 3;
@@ -70,7 +71,7 @@ impl Video<'_> {
     pub fn draw(&mut self, bus: &Bus, cpu: &Cpu) {
         self.update_tile_data(bus, cpu);
 
-        let lcdc_control = bus.read(0xFF40, cpu);
+        let lcdc_control = bus.read(cpu, 0xFF40);
         let start_addr = if lcdc_control & 8 == 0 {
             0x9800
         } else {
@@ -87,7 +88,7 @@ impl Video<'_> {
 
         for tile_number in 0..1024 {
             let addr = start_addr + tile_number;
-            let tile_id = bus.read(addr, cpu) as i32;
+            let tile_id = bus.read(cpu, addr) as i32;
             let tile_x = (tile_id % 20) * 8;
             let tile_y = (tile_id / 20) * 8;
 
@@ -120,9 +121,9 @@ fn draw_tile_into_texture(
 ) {
     let mut addr = addr;
     for pixel_y in 0..8 {
-        let byte1 = bus.read(addr, cpu);
+        let byte1 = bus.read(cpu, addr);
         addr += 1;
-        let byte2 = bus.read(addr, cpu);
+        let byte2 = bus.read(cpu, addr);
         addr += 1;
         for shift in (0..8).rev() {
             let higher = ((byte1 >> shift) & 1) << 1;

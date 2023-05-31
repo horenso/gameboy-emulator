@@ -1,10 +1,10 @@
 use std::io::Write;
 
+use super::decode::{decode_prefixed, decode_unprefixed};
+use super::instruction::*;
+use super::registers::Registers;
 use crate::bus::Bus;
-use crate::decode::*;
-use crate::helper::{combine_to_u16, split_u16, split_u32};
-use crate::instruction::*;
-use crate::registers::Registers;
+use crate::util::helper::{combine_to_u16, split_u16, split_u32};
 
 #[repr(u16)]
 enum Interrupt {
@@ -77,7 +77,7 @@ impl Cpu {
     }
 
     fn read_next_8bit(&mut self, bus: &Bus) -> u8 {
-        let data = bus.read(self.regs.pc, self);
+        let data = bus.read(self, self.regs.pc);
         self.regs.pc = self.regs.pc.wrapping_add(1);
         data
     }
@@ -157,12 +157,12 @@ impl Cpu {
 
     fn load_indr(&mut self, bus: &Bus, reg: &Reg16) -> u8 {
         let addr = self.get_reg16(&reg);
-        bus.read(addr, self)
+        bus.read(self, addr)
     }
 
     fn save_indr(&mut self, bus: &mut Bus, reg: &Reg16, data: u8) {
         let addr = self.get_reg16(&reg);
-        bus.write(addr, data);
+        bus.write(self, addr, data);
     }
 
     fn get_8bit_operand(&mut self, bus: &Bus, operand: &Operand) -> u8 {
@@ -179,7 +179,7 @@ impl Cpu {
             Operand::R8(reg) => self.set_reg8(reg, data),
             Operand::IndR16(reg) => {
                 let addr = self.get_reg16(reg);
-                bus.write(addr, data);
+                bus.write(self, addr, data);
             }
             _ => unreachable!(),
         }
@@ -196,10 +196,10 @@ impl Cpu {
     }
 
     pub fn debug_print(&self, bus: &Bus, file: &mut impl Write) {
-        let p0 = bus.read(self.regs.pc, self);
-        let p1 = bus.read(self.regs.pc.wrapping_add(1), self);
-        let p2 = bus.read(self.regs.pc.wrapping_add(2), self);
-        let p3 = bus.read(self.regs.pc.wrapping_add(3), self);
+        let p0 = bus.read(self, self.regs.pc);
+        let p1 = bus.read(self, self.regs.pc.wrapping_add(1));
+        let p2 = bus.read(self, self.regs.pc.wrapping_add(2));
+        let p3 = bus.read(self, self.regs.pc.wrapping_add(3));
         writeln!(
             file,
             concat!(
@@ -300,13 +300,13 @@ impl Cpu {
             Operand::D8 => self.read_next_8bit(bus),
             Operand::A8 => {
                 let addr = combine_to_u16(0xFF, self.read_next_8bit(bus));
-                bus.read(addr, self)
+                bus.read(self, addr)
             }
             Operand::A16 => {
                 let addr = self.read_next_16bit(bus);
-                bus.read(addr, self)
+                bus.read(self, addr)
             }
-            Operand::IndHighPlusC => bus.read(combine_to_u16(0xFF, self.regs.c), self),
+            Operand::IndHighPlusC => bus.read(self, combine_to_u16(0xFF, self.regs.c)),
             Operand::IndR16(reg) => self.load_indr(bus, &reg),
             Operand::R8(reg) => self.get_reg8(&reg),
             _ => unreachable!(),
@@ -314,15 +314,15 @@ impl Cpu {
         match dest {
             Operand::A8 => {
                 let addr = combine_to_u16(0xFF, self.read_next_8bit(bus));
-                bus.write(addr, data);
+                bus.write(self, addr, data);
             }
             Operand::A16 => {
                 let addr = self.read_next_16bit(bus);
-                bus.write(addr, data);
+                bus.write(self, addr, data);
             }
             Operand::IndHighPlusC => {
                 let addr = combine_to_u16(0xFF, self.regs.c);
-                bus.write(addr, data)
+                bus.write(self, addr, data)
             }
             Operand::IndR16(reg) => self.save_indr(bus, &reg, data),
             Operand::R8(reg) => {
@@ -342,14 +342,14 @@ impl Cpu {
             Operand::A8 => {
                 let addr = combine_to_u16(0xFF, self.read_next_8bit(bus));
                 let (high, low) = split_u16(data);
-                bus.write(addr, low);
-                bus.write(addr + 1, high);
+                bus.write(self, addr, low);
+                bus.write(self, addr + 1, high);
             }
             Operand::A16 => {
                 let addr = self.read_next_16bit(bus);
                 let (high, low) = split_u16(data);
-                bus.write(addr, low);
-                bus.write(addr + 1, high);
+                bus.write(self, addr, low);
+                bus.write(self, addr + 1, high);
             }
             Operand::R16(reg) => self.set_reg16(&reg, data),
             _ => unreachable!(),
@@ -375,15 +375,15 @@ impl Cpu {
     fn push_stack(&mut self, bus: &mut Bus, reg: Reg16) {
         let (high, low) = split_u16(self.get_reg16(&reg));
         self.regs.sp -= 1;
-        bus.write(self.regs.sp, high);
+        bus.write(self, self.regs.sp, high);
         self.regs.sp -= 1;
-        bus.write(self.regs.sp, low);
+        bus.write(self, self.regs.sp, low);
     }
 
     fn pop_stack(&mut self, bus: &mut Bus, reg: Reg16) {
-        let low = bus.read(self.regs.sp, self);
+        let low = bus.read(self, self.regs.sp);
         self.regs.sp += 1;
-        let high = bus.read(self.regs.sp, self);
+        let high = bus.read(self, self.regs.sp);
         self.regs.sp += 1;
         self.set_reg16(&reg, combine_to_u16(high, low));
     }
@@ -535,7 +535,7 @@ impl Cpu {
         match operand {
             Operand::IndR16(reg) => {
                 let addr = self.get_reg16(&reg);
-                bus.write(addr, result as u8);
+                bus.write(self, addr, result as u8);
             }
             Operand::R8(reg) => self.set_reg8(&reg, result as u8),
             _ => unreachable!(),
@@ -557,7 +557,7 @@ impl Cpu {
         match operand {
             Operand::IndR16(reg) => {
                 let addr = self.get_reg16(&reg);
-                bus.write(addr, result);
+                bus.write(self, addr, result);
             }
             Operand::R8(reg) => self.set_reg8(&reg, result),
             _ => unreachable!(),
