@@ -37,6 +37,7 @@ How does DDA work:
 Interrupts and Timers:
 
 - https://emudev.de/gameboy-emulator/interrupts-and-timers/
+- http://imrannazar.com/gameboy-emulation-in-javascript:-interrupts
 
 Drawing:
 
