@@ -43,8 +43,8 @@ fn main() -> Result<(), String> {
     let print_cpu_debug = args.debug_print;
     let mut show_background = args.draw_background;
 
-    let mut bus = Bus::new(cartridge);
     let mut cpu = Cpu::new();
+    let mut bus = Bus::new(cartridge);
 
     let sdl_context = sdl2::init()?;
     let mut video = Video::new(&sdl_context);
@@ -88,7 +88,7 @@ fn main() -> Result<(), String> {
         if show_background && bus.v_ram_dirty {
             let now = Instant::now();
 
-            video.draw(&bus);
+            video.draw(&bus, &cpu);
             bus.v_ram_dirty = false;
 
             let elapsed = now.elapsed();

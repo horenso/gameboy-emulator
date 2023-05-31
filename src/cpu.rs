@@ -8,7 +8,7 @@ use crate::registers::Registers;
 
 pub struct Cpu {
     regs: Registers,
-    interrupt_master_enabled: bool,
+    pub interrupt_master_enabled: bool,
     interrupt_flags: u8,
     pub counter: u64, // count number of executed instructions
 }
@@ -29,7 +29,7 @@ impl Cpu {
     }
 
     fn read_next_8bit(&mut self, bus: &Bus) -> u8 {
-        let data = bus.read(self.regs.pc);
+        let data = bus.read(self.regs.pc, self);
         self.regs.pc = self.regs.pc.wrapping_add(1);
         data
     }
@@ -109,7 +109,7 @@ impl Cpu {
 
     fn load_indr(&mut self, bus: &Bus, reg: &Reg16) -> u8 {
         let addr = self.get_reg16(&reg);
-        bus.read(addr)
+        bus.read(addr, self)
     }
 
     fn save_indr(&mut self, bus: &mut Bus, reg: &Reg16, data: u8) {
@@ -148,10 +148,10 @@ impl Cpu {
     }
 
     pub fn debug_print(&self, bus: &Bus, file: &mut impl Write) {
-        let p0 = bus.read(self.regs.pc);
-        let p1 = bus.read(self.regs.pc.wrapping_add(1));
-        let p2 = bus.read(self.regs.pc.wrapping_add(2));
-        let p3 = bus.read(self.regs.pc.wrapping_add(3));
+        let p0 = bus.read(self.regs.pc, self);
+        let p1 = bus.read(self.regs.pc.wrapping_add(1), self);
+        let p2 = bus.read(self.regs.pc.wrapping_add(2), self);
+        let p3 = bus.read(self.regs.pc.wrapping_add(3), self);
         writeln!(
             file,
             concat!(
@@ -179,17 +179,14 @@ impl Cpu {
 
     pub fn execute(&mut self, bus: &mut Bus, inst: Inst) {
         self.counter += 1;
-        // if self.counter % 10000 == 0 {
-        // pristdout"{:08}: {:?}", self.counter, inst);
-        // }
         match inst {
             Inst::Prefix => unreachable!(),
 
             Inst::NoOp => (),
             Inst::Halt => self.halt(),
             Inst::Stop => self.stop(),
-            Inst::Di => self.di(),
-            Inst::Ei => self.ei(),
+            Inst::Di => self.di(bus),
+            Inst::Ei => self.ei(bus),
 
             Inst::Ld8(dest, source) => self.ld8(bus, dest, source),
             Inst::Ld16(dest, source) => self.ld16(bus, dest, source),
@@ -239,12 +236,12 @@ impl Cpu {
         // println!("STOPPPPP");
     }
 
-    fn di(&self) {
-        // println!("diiiii");
+    fn di(&mut self, bus: &mut Bus) {
+        self.interrupt_master_enabled = false;
     }
 
-    fn ei(&self) {
-        // println!("eiiiii");
+    fn ei(&mut self, bus: &mut Bus) {
+        self.interrupt_master_enabled = true;
     }
 
     fn ld8(&mut self, bus: &mut Bus, dest: Operand, source: Operand) {
@@ -252,13 +249,13 @@ impl Cpu {
             Operand::D8 => self.read_next_8bit(bus),
             Operand::A8 => {
                 let addr = combine_to_u16(0xFF, self.read_next_8bit(bus));
-                bus.read(addr)
+                bus.read(addr, self)
             }
             Operand::A16 => {
                 let addr = self.read_next_16bit(bus);
-                bus.read(addr)
+                bus.read(addr, self)
             }
-            Operand::IndHighPlusC => bus.read(combine_to_u16(0xFF, self.regs.c)),
+            Operand::IndHighPlusC => bus.read(combine_to_u16(0xFF, self.regs.c), self),
             Operand::IndR16(reg) => self.load_indr(bus, &reg),
             Operand::R8(reg) => self.get_reg8(&reg),
             _ => unreachable!(),
@@ -333,9 +330,9 @@ impl Cpu {
     }
 
     fn pop(&mut self, bus: &mut Bus, reg: Reg16) {
-        let low = bus.read(self.regs.sp);
+        let low = bus.read(self.regs.sp, self);
         self.regs.sp += 1;
-        let high = bus.read(self.regs.sp);
+        let high = bus.read(self.regs.sp, self);
         self.regs.sp += 1;
         self.set_reg16(&reg, combine_to_u16(high, low));
     }

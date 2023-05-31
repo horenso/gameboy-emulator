@@ -1,4 +1,4 @@
-use crate::cartridge::Cartridge;
+use crate::{cartridge::Cartridge, cpu::Cpu};
 
 const V_RAM_SIZE: usize = 8192;
 const W_RAM_SIZE: usize = 8192;
@@ -42,7 +42,7 @@ impl Bus {
     }
 
     // https://gbdev.io/pandocs/Memory_Map.html
-    pub fn read(&self, address: u16) -> u8 {
+    pub fn read(&self, address: u16, cpu: &Cpu) -> u8 {
         // println!("Reading bus at {:#x}", address);
         match address {
             CART_START..=CART_END => self.cartridge.read(address as usize),
@@ -62,6 +62,13 @@ impl Bus {
             H_RAM_START..=H_RAM_END => {
                 let h_ram_address = (address - H_RAM_START) as usize;
                 self.h_ram[h_ram_address]
+            }
+            INT_MASTER_ENABLED => {
+                if cpu.interrupt_master_enabled {
+                    1
+                } else {
+                    0
+                }
             }
             _ => 0, // TODO: _ => unreachable!(),
         }
@@ -89,6 +96,7 @@ impl Bus {
                 self.h_ram[h_ram_address] = data
             }
             0xFFFF => {
+                eprintln!("Writting to FFFF to enable {}", data);
                 // TODO interrupts (write only)
             }
             _ => unreachable!(),
