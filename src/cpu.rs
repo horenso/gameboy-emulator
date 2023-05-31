@@ -6,26 +6,74 @@ use crate::helper::{combine_to_u16, split_u16, split_u32};
 use crate::instruction::*;
 use crate::registers::Registers;
 
+#[repr(u16)]
+enum Interrupt {
+    VBlank = 0x40,
+    LcdStat = 0x48,
+    Timer = 0x50,
+    Serial = 0x58,
+    Joypad = 0x60,
+}
+
+#[repr(u8)]
+enum InterruptBit {
+    VBlank = 1,
+    LcdStat = 2,
+    Timer = 4,
+    Serial = 8,
+    Joypad = 16,
+}
+
 pub struct Cpu {
     regs: Registers,
-    pub interrupt_master_enabled: bool,
     interrupt_flags: u8,
-    pub counter: u64, // count number of executed instructions
+    is_halted: bool,
+
+    pub(crate) interrupt_master_enabled: bool,
+    pub(crate) divider: u16,
+    pub(crate) counter: u64, // count number of executed instructions
 }
 
 impl Cpu {
     pub fn new() -> Cpu {
         Cpu {
             regs: Registers::new(),
-            interrupt_master_enabled: false,
             interrupt_flags: 0,
+            is_halted: false,
+            interrupt_master_enabled: false,
+            divider: 0,
             counter: 0,
         }
     }
 
     pub fn fetch_and_execute(&mut self, bus: &mut Bus) {
+        self.handle_interrupts(bus);
+        if self.is_halted {
+            return;
+        }
+
         let inst = self.fetch(bus);
         self.execute(bus, inst);
+    }
+
+    fn handle_interrupts(&mut self, bus: &mut Bus) {
+        if !self.interrupt_master_enabled || self.interrupt_flags == 0 {
+            return;
+        }
+
+        self.push_stack(bus, Reg16::Pc);
+
+        if self.interrupt_flags & InterruptBit::VBlank as u8 != 0 {
+            self.regs.pc = Interrupt::VBlank as u16;
+        } else if self.interrupt_flags & InterruptBit::LcdStat as u8 != 0 {
+            self.regs.pc = Interrupt::LcdStat as u16;
+        } else if self.interrupt_flags & InterruptBit::Timer as u8 != 0 {
+            self.regs.pc = Interrupt::Timer as u16;
+        } else if self.interrupt_flags & InterruptBit::Serial as u8 != 0 {
+            self.regs.pc = Interrupt::Serial as u16;
+        } else if self.interrupt_flags & InterruptBit::Joypad as u8 != 0 {
+            self.regs.pc = Interrupt::Joypad as u16;
+        }
     }
 
     fn read_next_8bit(&mut self, bus: &Bus) -> u8 {
@@ -185,14 +233,14 @@ impl Cpu {
             Inst::NoOp => (),
             Inst::Halt => self.halt(),
             Inst::Stop => self.stop(),
-            Inst::Di => self.di(bus),
-            Inst::Ei => self.ei(bus),
+            Inst::Di => self.di(),
+            Inst::Ei => self.ei(),
 
             Inst::Ld8(dest, source) => self.ld8(bus, dest, source),
             Inst::Ld16(dest, source) => self.ld16(bus, dest, source),
             Inst::LdHlSp => self.ld_hl_sp_plus_offset(bus),
-            Inst::Push(reg) => self.push(bus, reg),
-            Inst::Pop(reg) => self.pop(bus, reg),
+            Inst::Push(reg) => self.push_stack(bus, reg),
+            Inst::Pop(reg) => self.pop_stack(bus, reg),
 
             Inst::Jr(cond) => self.jr(bus, cond),
             Inst::Jp(cond, dest) => self.jp(bus, cond, dest),
@@ -230,17 +278,20 @@ impl Cpu {
         };
     }
 
-    fn halt(&self) {}
+    fn halt(&mut self) {
+        self.is_halted = true;
+    }
 
     fn stop(&self) {
+        // TODO: What do we do here?
         // println!("STOPPPPP");
     }
 
-    fn di(&mut self, bus: &mut Bus) {
+    fn di(&mut self) {
         self.interrupt_master_enabled = false;
     }
 
-    fn ei(&mut self, bus: &mut Bus) {
+    fn ei(&mut self) {
         self.interrupt_master_enabled = true;
     }
 
@@ -321,7 +372,7 @@ impl Cpu {
             .set_flag_carry(((sp ^ u16_offset ^ (result & 0xFFFF)) & 0x100) == 0x100);
     }
 
-    fn push(&mut self, bus: &mut Bus, reg: Reg16) {
+    fn push_stack(&mut self, bus: &mut Bus, reg: Reg16) {
         let (high, low) = split_u16(self.get_reg16(&reg));
         self.regs.sp -= 1;
         bus.write(self.regs.sp, high);
@@ -329,7 +380,7 @@ impl Cpu {
         bus.write(self.regs.sp, low);
     }
 
-    fn pop(&mut self, bus: &mut Bus, reg: Reg16) {
+    fn pop_stack(&mut self, bus: &mut Bus, reg: Reg16) {
         let low = bus.read(self.regs.sp, self);
         self.regs.sp += 1;
         let high = bus.read(self.regs.sp, self);
@@ -359,24 +410,24 @@ impl Cpu {
     fn call(&mut self, bus: &mut Bus, cond: Cond) {
         let new_address = self.read_next_16bit(bus);
         if self.check_cond(cond) {
-            self.push(bus, Reg16::Pc);
+            self.push_stack(bus, Reg16::Pc);
             self.regs.pc = new_address;
         }
     }
 
     fn ret(&mut self, bus: &mut Bus, cond: Cond) {
         if self.check_cond(cond) {
-            self.pop(bus, Reg16::Pc);
+            self.pop_stack(bus, Reg16::Pc);
         }
     }
 
     fn reti(&mut self, bus: &mut Bus) {
-        // TODO: Enable interrupts here
         self.ret(bus, Cond::Always);
+        self.interrupt_master_enabled = true;
     }
 
     fn rst(&mut self, bus: &mut Bus, offset: u8) {
-        self.push(bus, Reg16::Pc);
+        self.push_stack(bus, Reg16::Pc);
         self.regs.pc = combine_to_u16(0, offset);
     }
 
