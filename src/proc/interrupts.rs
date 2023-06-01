@@ -37,21 +37,24 @@ static INTERRUPT_PRIORITY: &[Interrupt] = &[
     Interrupt::Joypad,
 ];
 
+#[derive(Debug)]
 pub struct InterruptHandler {
     pub(crate) master_enabled: bool,
-    pub(super) flags: u8,
+    pub(crate) enabled: u8,
+    pub(crate) requested: u8,
 }
 
 impl InterruptHandler {
     pub fn new() -> InterruptHandler {
         InterruptHandler {
             master_enabled: false,
-            flags: 0,
+            enabled: 0,
+            requested: 0,
         }
     }
 
     pub fn handle_interrupts(&mut self) -> Option<u16> {
-        if !self.master_enabled || self.flags == 0 {
+        if !self.master_enabled || self.enabled == 0 {
             return Option::None;
         }
 
@@ -68,11 +71,11 @@ impl InterruptHandler {
     }
 
     fn handle_interrupt(&mut self, interrupt: &Interrupt) -> Option<u16> {
-        if self.flags & interrupt.bit() == 0 {
+        if self.enabled & interrupt.bit() == 0 {
             return Option::None;
         }
         self.master_enabled = false;
-        self.flags &= !interrupt.bit();
+        self.enabled &= !interrupt.bit();
         return Option::Some(interrupt.address());
     }
 }

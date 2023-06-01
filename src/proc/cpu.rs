@@ -4,15 +4,17 @@ use super::decode::{decode_prefixed, decode_unprefixed};
 use super::instruction::*;
 use super::interrupts::InterruptHandler;
 use super::registers::Registers;
+use super::timer::Timer;
 use crate::bus::Bus;
 use crate::util::helper::{combine_to_u16, split_u16, split_u32};
 
+#[derive(Debug)]
 pub struct Cpu {
     pub(super) regs: Registers,
-    pub(crate) is_halted: bool,
     pub(crate) interrupt_handler: InterruptHandler,
+    pub(crate) timer: Timer,
 
-    pub(crate) divider: u16,
+    pub(crate) is_halted: bool,
     pub(crate) counter: u64, // count number of executed instructions
 }
 
@@ -21,8 +23,8 @@ impl Cpu {
         Cpu {
             regs: Registers::new(),
             interrupt_handler: InterruptHandler::new(),
+            timer: Timer::new(),
             is_halted: false,
-            divider: 0,
             counter: 0,
         }
     }
@@ -34,17 +36,21 @@ impl Cpu {
             self.push_stack(bus, Reg16::Pc);
             self.regs.pc = jump_address;
         }
-        if self.is_halted {
-            eprintln!("Cpu is halted");
-            return;
-        }
+        // if self.is_halted {
+        //     eprintln!("Cpu is halted: {:?}", self.interrupt_handler);
+        //     return;
+        // }
 
         let inst = self.fetch(bus);
         self.execute(bus, inst);
     }
 
-    pub fn set_interrupt_flag(&mut self, data: u8) {
-        self.interrupt_handler.flags = data & 0b0001_1111;
+    pub fn set_interrupt_enabled(&mut self, data: u8) {
+        self.interrupt_handler.enabled = data & 0b0001_1111;
+    }
+
+    pub fn set_interrupt_requested(&mut self, data: u8) {
+        self.interrupt_handler.requested = data & 0b0001_1111;
     }
 
     fn read_next_8bit(&mut self, bus: &Bus) -> u8 {

@@ -22,7 +22,7 @@ const IO_REGS_END: u16 = 0xFF70;
 const H_RAM_START: u16 = 0xFF80;
 const H_RAM_END: u16 = 0xFFFE;
 
-const INT_MASTER_ENABLED: u16 = 0xFFFF;
+const INTERRUPT_ENABLED: u16 = 0xFFFF;
 
 pub struct Bus {
     cartridge: Cartridge,
@@ -65,12 +65,9 @@ impl Bus {
                 let h_ram_address = (address - H_RAM_START) as usize;
                 self.h_ram[h_ram_address]
             }
-            INT_MASTER_ENABLED => {
-                if cpu.interrupt_handler.master_enabled {
-                    1
-                } else {
-                    0
-                }
+            INTERRUPT_ENABLED => {
+                eprintln!("Read from FFFF, got: {}", cpu.interrupt_handler.enabled);
+                cpu.interrupt_handler.enabled
             }
             _ => 0, // TODO: _ => unreachable!(),
         }
@@ -79,9 +76,16 @@ impl Bus {
     fn read_mapped_io_register(&self, cpu: &Cpu, offset: u8) -> u8 {
         match offset {
             0 => 0,
-            4 => {
+            0x04 => {
                 let (high, _) = split_u16(cpu.divider);
                 high
+            }
+            0x0F => {
+                eprintln!(
+                    "Reading from FF0F, got {:b}",
+                    cpu.interrupt_handler.requested
+                );
+                cpu.interrupt_handler.requested
             }
             _ => {
                 eprintln!("{} is not mapped yet!", offset);
@@ -105,24 +109,27 @@ impl Bus {
             }
             IO_REGS_START..=IO_REGS_END => {
                 let (_, lower) = split_u16(address);
-                self.write_mapped_io_register(cpu, lower);
+                self.write_mapped_io_register(cpu, lower, data);
             }
             H_RAM_START..=H_RAM_END => {
                 let h_ram_address = (address - H_RAM_START) as usize;
                 self.h_ram[h_ram_address] = data
             }
-            0xFFFF => {
-                cpu.set_interrupt_flag(data);
-                eprintln!("Writting to FFFF to enable {}", data);
-                // TODO interrupts (write only)
+            INTERRUPT_ENABLED => {
+                eprintln!("Writting to FFFF to enable {:b}", data);
+                cpu.set_interrupt_enabled(data);
             }
             _ => unreachable!(),
         }
     }
 
-    fn write_mapped_io_register(&self, cpu: &mut Cpu, offset: u8) {
+    fn write_mapped_io_register(&self, cpu: &mut Cpu, offset: u8, data: u8) {
         match offset {
-            4 => cpu.divider = 0,
+            0x04 => cpu.divider = 0,
+            0x0F => {
+                eprintln!("Set FF0F requested: {}", data);
+                cpu.set_interrupt_requested(data)
+            }
             _ => eprintln!("{} is not mapped yet!", offset),
         }
     }

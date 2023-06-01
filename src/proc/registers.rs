@@ -7,7 +7,7 @@ pub enum Flag {
     Carry = 0b0001_0000,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Registers {
     pub a: u8,
     pub f: u8,
