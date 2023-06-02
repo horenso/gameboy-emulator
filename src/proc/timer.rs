@@ -15,4 +15,12 @@ impl Timer {
             divider: 0,
         }
     }
+
+    pub fn devider(&self) -> u8 {
+        self.divider
+    }
+
+    pub fn reset_devider(&mut self) {
+        self.divider = 0;
+    }
 }

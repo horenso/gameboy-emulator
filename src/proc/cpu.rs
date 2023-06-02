@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use super::decode::{decode_prefixed, decode_unprefixed};
 use super::instruction::*;
 use super::interrupts::InterruptHandler;
@@ -7,6 +5,7 @@ use super::registers::Registers;
 use super::timer::Timer;
 use crate::bus::Bus;
 use crate::util::helper::{combine_to_u16, split_u16, split_u32};
+use std::io::Write;
 
 #[derive(Debug)]
 pub struct Cpu {
@@ -30,19 +29,21 @@ impl Cpu {
     }
 
     pub fn fetch_and_execute(&mut self, bus: &mut Bus) {
-        let maybe_jump_address = self.interrupt_handler.handle_interrupts();
-        if let Some(jump_address) = maybe_jump_address {
-            self.is_halted = false;
-            self.push_stack(bus, Reg16::Pc);
-            self.regs.pc = jump_address;
-        }
-        // if self.is_halted {
-        //     eprintln!("Cpu is halted: {:?}", self.interrupt_handler);
-        //     return;
-        // }
-
         let inst = self.fetch(bus);
         self.execute(bus, inst);
+        let maybe_jump_address = self.interrupt_handler.handle_interrupts();
+        if let Some(jump_address) = maybe_jump_address {
+            eprintln!(
+                "{}: INTERRUPT HAPPEND: Jumping to {:x}",
+                self.counter, jump_address
+            );
+            self.is_halted = false;
+            self.push_and_set_pc(bus, jump_address);
+        }
+        if self.is_halted {
+            eprintln!("Cpu is halted: {:?}", self.interrupt_handler);
+            return;
+        }
     }
 
     pub fn set_interrupt_enabled(&mut self, data: u8) {
@@ -203,6 +204,7 @@ impl Cpu {
     }
 
     pub fn execute(&mut self, bus: &mut Bus, inst: Inst) {
+        eprintln!("{} Inst: {:?} PC:{:x}", self.counter, inst, self.regs.pc);
         self.counter += 1;
         match inst {
             Inst::Prefix => unreachable!(),
@@ -261,7 +263,7 @@ impl Cpu {
 
     fn stop(&self) {
         // TODO: What do we do here?
-        // println!("STOPPPPP");
+        println!("STOPPPPP");
     }
 
     fn di(&mut self) {
@@ -386,11 +388,15 @@ impl Cpu {
         }
     }
 
+    fn push_and_set_pc(&mut self, bus: &mut Bus, address: u16) {
+        self.push_stack(bus, Reg16::Pc);
+        self.regs.pc = address;
+    }
+
     fn call(&mut self, bus: &mut Bus, cond: Cond) {
         let new_address = self.read_next_16bit(bus);
         if self.check_cond(cond) {
-            self.push_stack(bus, Reg16::Pc);
-            self.regs.pc = new_address;
+            self.push_and_set_pc(bus, new_address);
         }
     }
 
@@ -406,8 +412,7 @@ impl Cpu {
     }
 
     fn rst(&mut self, bus: &mut Bus, offset: u8) {
-        self.push_stack(bus, Reg16::Pc);
-        self.regs.pc = combine_to_u16(0, offset);
+        self.push_and_set_pc(bus, combine_to_u16(0, offset));
     }
 
     fn add_a(&mut self, bus: &mut Bus, operand: Operand, with_carry: bool) {

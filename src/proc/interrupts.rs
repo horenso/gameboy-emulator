@@ -54,17 +54,14 @@ impl InterruptHandler {
     }
 
     pub fn handle_interrupts(&mut self) -> Option<u16> {
-        if !self.master_enabled || self.enabled == 0 {
+        if !self.master_enabled || self.requested & self.enabled == 0 {
             return Option::None;
         }
 
         for interrupt in INTERRUPT_PRIORITY {
             let result = self.handle_interrupt(interrupt);
-            match result {
-                Option::Some(..) => {
-                    return result;
-                }
-                _ => (),
+            if let Some(..) = result {
+                return result;
             }
         }
         Option::None
@@ -75,7 +72,7 @@ impl InterruptHandler {
             return Option::None;
         }
         self.master_enabled = false;
-        self.enabled &= !interrupt.bit();
-        return Option::Some(interrupt.address());
+        self.requested &= !interrupt.bit();
+        Option::Some(interrupt.address())
     }
 }

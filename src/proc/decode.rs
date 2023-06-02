@@ -114,16 +114,6 @@ fn operand(code: u8) -> Operand {
     }
 }
 
-fn operand_imm16(code: u8) -> Operand {
-    match code {
-        0 => Operand::IndR16(Reg16::Bc),
-        1 => Operand::IndR16(Reg16::De),
-        2 => Operand::IndR16(Reg16::Hl),
-        3 => Operand::IndR16(Reg16::Sp),
-        _ => unreachable!(),
-    }
-}
-
 fn rp_table(code: u8) -> Reg16 {
     match code {
         0 => Reg16::Bc,

@@ -1,6 +1,3 @@
-#![allow(dead_code)] // TODO: Obv delete this at some point
-
-// TODO: Figure out how to properly structure Rust project.
 mod bus;
 mod cartridge;
 mod proc;
@@ -49,9 +46,6 @@ fn main() -> Result<(), String> {
     let mut event_pump = sdl_context.event_pump()?;
     let mut is_paused = false;
 
-    if print_cpu_debug {
-        cpu.debug_print(&bus, &mut io::stdout());
-    }
     'main_loop: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -80,6 +74,7 @@ fn main() -> Result<(), String> {
         cpu.fetch_and_execute(&mut bus);
         if print_cpu_debug {
             cpu.debug_print(&bus, &mut io::stdout());
+            cpu.debug_print(&bus, &mut io::stderr());
         }
 
         if show_background && bus.v_ram_dirty {
@@ -91,9 +86,6 @@ fn main() -> Result<(), String> {
             let elapsed = now.elapsed();
             eprintln!("Elapsed: {:.2?}", elapsed);
         }
-
-        // sleep(Duration::from_millis(5));
-        // println!("Ticks: {}", cpu.counter);
     }
     Ok(())
 }

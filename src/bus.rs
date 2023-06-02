@@ -4,7 +4,6 @@ use crate::util::helper::split_u16;
 
 const V_RAM_SIZE: usize = 8192;
 const W_RAM_SIZE: usize = 8192;
-const IO_REGS_SIZE: usize = 113;
 const H_RAM_SIZE: usize = 127;
 
 const CART_START: u16 = 0;
@@ -76,10 +75,7 @@ impl Bus {
     fn read_mapped_io_register(&self, cpu: &Cpu, offset: u8) -> u8 {
         match offset {
             0 => 0,
-            0x04 => {
-                let (high, _) = split_u16(cpu.divider);
-                high
-            }
+            0x04 => cpu.timer.devider(),
             0x0F => {
                 eprintln!(
                     "Reading from FF0F, got {:b}",
@@ -97,7 +93,9 @@ impl Bus {
     pub fn write(&mut self, cpu: &mut Cpu, address: u16, data: u8) {
         // println!("Writing to address: {:#x} data: {:#x}", address, data);
         match address {
-            CART_START..=CART_END => (),
+            CART_START..=CART_END => {
+                eprintln!("Writting to cartridge at {:x}", address);
+            }
             V_RAM_START..=V_RAM_END => {
                 let v_ram_address = (address - V_RAM_START) as usize;
                 self.v_ram[v_ram_address] = data;
@@ -125,9 +123,9 @@ impl Bus {
 
     fn write_mapped_io_register(&self, cpu: &mut Cpu, offset: u8, data: u8) {
         match offset {
-            0x04 => cpu.divider = 0,
+            0x04 => cpu.timer.reset_devider(),
             0x0F => {
-                eprintln!("Set FF0F requested: {}", data);
+                eprintln!("Set FF0F requested: {:b}", data);
                 cpu.set_interrupt_requested(data)
             }
             _ => eprintln!("{} is not mapped yet!", offset),
