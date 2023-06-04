@@ -40,8 +40,8 @@ static INTERRUPT_PRIORITY: &[Interrupt] = &[
 #[derive(Debug)]
 pub struct InterruptHandler {
     pub(crate) master_enabled: bool,
-    pub(crate) enabled: u8,
-    pub(crate) requested: u8,
+    enabled: u8,
+    requested: u8,
 }
 
 impl InterruptHandler {
@@ -74,5 +74,21 @@ impl InterruptHandler {
         self.master_enabled = false;
         self.requested &= !interrupt.bit();
         Option::Some(interrupt.address())
+    }
+
+    pub fn enabled(&self) -> u8 {
+        self.enabled
+    }
+
+    pub fn set_enabled(&mut self, data: u8) {
+        self.enabled = data & 0b0001_1111;
+    }
+
+    pub fn requested(&self) -> u8 {
+        self.requested
+    }
+
+    pub fn set_requested(&mut self, data: u8) {
+        self.requested = data & 0b0001_1111;
     }
 }

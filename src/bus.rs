@@ -65,8 +65,8 @@ impl Bus {
                 self.h_ram[h_ram_address]
             }
             INTERRUPT_ENABLED => {
-                eprintln!("Read from FFFF, got: {}", cpu.interrupt_handler.enabled);
-                cpu.interrupt_handler.enabled
+                eprintln!("Read from FFFF, got: {}", cpu.interrupt_handler.enabled());
+                cpu.interrupt_handler.enabled()
             }
             _ => 0, // TODO: _ => unreachable!(),
         }
@@ -79,9 +79,9 @@ impl Bus {
             0x0F => {
                 eprintln!(
                     "Reading from FF0F, got {:b}",
-                    cpu.interrupt_handler.requested
+                    cpu.interrupt_handler.requested()
                 );
-                cpu.interrupt_handler.requested
+                cpu.interrupt_handler.requested()
             }
             _ => {
                 eprintln!("{} is not mapped yet!", offset);
@@ -115,7 +115,7 @@ impl Bus {
             }
             INTERRUPT_ENABLED => {
                 eprintln!("Writting to FFFF to enable {:b}", data);
-                cpu.set_interrupt_enabled(data);
+                cpu.interrupt_handler.set_enabled(data);
             }
             _ => unreachable!(),
         }
@@ -126,7 +126,7 @@ impl Bus {
             0x04 => cpu.timer.reset_devider(),
             0x0F => {
                 eprintln!("Set FF0F requested: {:b}", data);
-                cpu.set_interrupt_requested(data)
+                cpu.interrupt_handler.set_requested(data)
             }
             _ => eprintln!("{} is not mapped yet!", offset),
         }

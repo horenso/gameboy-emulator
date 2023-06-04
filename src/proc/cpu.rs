@@ -46,14 +46,6 @@ impl Cpu {
         }
     }
 
-    pub fn set_interrupt_enabled(&mut self, data: u8) {
-        self.interrupt_handler.enabled = data & 0b0001_1111;
-    }
-
-    pub fn set_interrupt_requested(&mut self, data: u8) {
-        self.interrupt_handler.requested = data & 0b0001_1111;
-    }
-
     fn read_next_8bit(&mut self, bus: &Bus) -> u8 {
         let data = bus.read(self, self.regs.pc);
         self.regs.pc = self.regs.pc.wrapping_add(1);
