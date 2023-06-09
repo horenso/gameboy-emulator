@@ -6,6 +6,8 @@ use super::timer::Timer;
 use crate::bus::Bus;
 use crate::util::helper::{combine_to_u16, split_u16, split_u32};
 use std::io::Write;
+use std::thread::sleep;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Cpu {
@@ -15,6 +17,7 @@ pub struct Cpu {
 
     pub(crate) is_halted: bool,
     pub(crate) counter: u64, // count number of executed instructions
+    cycles: u8,
 }
 
 impl Cpu {
@@ -25,6 +28,7 @@ impl Cpu {
             timer: Timer::new(),
             is_halted: false,
             counter: 0,
+            cycles: 0,
         }
     }
 
@@ -64,7 +68,12 @@ impl Cpu {
         if inst == Inst::Prefix {
             let fetched = self.read_next_8bit(bus);
             inst = decode_prefixed(fetched);
+            self.cycles += 1;
+            eprintln!("fetched: {:x}", fetched);
+        } else {
+            eprintln!("fetched: {:x}", fetched);
         }
+        self.cycles += 1;
         inst
     }
 
@@ -170,7 +179,7 @@ impl Cpu {
         let p1 = bus.read(self, self.regs.pc.wrapping_add(1));
         let p2 = bus.read(self, self.regs.pc.wrapping_add(2));
         let p3 = bus.read(self, self.regs.pc.wrapping_add(3));
-        writeln!(
+        let result = writeln!(
             file,
             concat!(
                 "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} ",
@@ -191,13 +200,18 @@ impl Cpu {
             p1,
             p2,
             p3,
-        )
-        .unwrap();
+        );
+        match result {
+            Err(..) => {
+                sleep(Duration::from_millis(200));
+            }
+            _ => (),
+        }
     }
 
     pub fn execute(&mut self, bus: &mut Bus, inst: Inst) {
-        eprintln!("{} Inst: {:?} PC:{:x}", self.counter, inst, self.regs.pc);
         self.counter += 1;
+        eprintln!("{} Inst: {:?} PC:{:x}", self.counter, inst, self.regs.pc);
         match inst {
             Inst::Prefix => unreachable!(),
 
@@ -213,8 +227,8 @@ impl Cpu {
             Inst::Push(reg) => self.push_stack(bus, reg),
             Inst::Pop(reg) => self.pop_stack(bus, reg),
 
-            Inst::Jr(cond) => self.jr(bus, cond),
-            Inst::Jp(cond, dest) => self.jp(bus, cond, dest),
+            Inst::Jr(cond) => self.jump_absolute(bus, cond),
+            Inst::Jp(cond, dest) => self.jump_relative(bus, cond, dest),
             Inst::Call(cond) => self.call(bus, cond),
             Inst::Ret(cond) => self.ret(bus, cond),
             Inst::Reti => self.reti(bus),
@@ -247,6 +261,8 @@ impl Cpu {
             Inst::SetCarryFlag => self.set_flag_carry(),
             Inst::ComplementCarryFlag => self.complement_carry_flag(),
         };
+        eprintln!("Took cycles: {}", self.cycles);
+        self.cycles = 0;
     }
 
     fn halt(&mut self) {
@@ -327,6 +343,7 @@ impl Cpu {
             Operand::R16(reg) => self.set_reg16(&reg, data),
             _ => unreachable!(),
         };
+        self.cycles += 2;
     }
 
     fn ld_hl_sp_plus_offset(&mut self, bus: &mut Bus) {
@@ -361,22 +378,26 @@ impl Cpu {
         self.set_reg16(&reg, combine_to_u16(high, low));
     }
 
-    fn jr(&mut self, bus: &Bus, cond: Cond) {
+    fn jump_absolute(&mut self, bus: &Bus, cond: Cond) {
         let data = i32::from(self.read_next_8bit(bus) as i8);
+        self.cycles += 1;
         if self.check_cond(cond) {
             let result = self.regs.pc as i32 + data;
             self.regs.pc = result as u16;
+            self.cycles += 1;
         }
     }
 
-    fn jp(&mut self, bus: &Bus, cond: Cond, dest: Operand) {
+    fn jump_relative(&mut self, bus: &Bus, cond: Cond, dest: Operand) {
         let addr = match dest {
             Operand::A16 => self.read_next_16bit(bus),
             Operand::R16(reg) => self.get_reg16(&reg),
             _ => unreachable!(),
         };
+        self.cycles += 1;
         if self.check_cond(cond) {
             self.regs.pc = addr;
+            self.cycles += 1;
         }
     }
 
@@ -387,14 +408,18 @@ impl Cpu {
 
     fn call(&mut self, bus: &mut Bus, cond: Cond) {
         let new_address = self.read_next_16bit(bus);
+        self.cycles += 2;
         if self.check_cond(cond) {
             self.push_and_set_pc(bus, new_address);
+            self.cycles += 4;
         }
     }
 
     fn ret(&mut self, bus: &mut Bus, cond: Cond) {
+        self.cycles += 1;
         if self.check_cond(cond) {
             self.pop_stack(bus, Reg16::Pc);
+            self.cycles += 3;
         }
     }
 
@@ -405,6 +430,7 @@ impl Cpu {
 
     fn rst(&mut self, bus: &mut Bus, offset: u8) {
         self.push_and_set_pc(bus, combine_to_u16(0, offset));
+        self.cycles += 3;
     }
 
     fn add_a(&mut self, bus: &mut Bus, operand: Operand, with_carry: bool) {
@@ -522,6 +548,7 @@ impl Cpu {
         let data = self.get_reg16(&reg);
         let sum = data.wrapping_add(1);
         self.set_reg16(&reg, sum);
+        self.cycles += 1;
     }
 
     fn dec8(&mut self, bus: &mut Bus, operand: Operand) {
@@ -544,6 +571,7 @@ impl Cpu {
         let data = self.get_reg16(&reg);
         let result = data.wrapping_sub(1);
         self.set_reg16(&reg, result);
+        self.cycles += 1;
     }
 
     fn rotate(&mut self, bus: &mut Bus, direction: Rotation, operand: Operand, set_zero: bool) {

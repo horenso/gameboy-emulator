@@ -74,8 +74,11 @@ impl Bus {
 
     fn read_mapped_io_register(&self, cpu: &Cpu, offset: u8) -> u8 {
         match offset {
-            0 => 0,
             0x04 => cpu.timer.devider(),
+            0x05 => cpu.timer.counter(),
+            0x06 => cpu.timer.modulo(),
+            0x07 => cpu.timer.control(),
+
             0x0F => {
                 eprintln!(
                     "Reading from FF0F, got {:b}",
@@ -124,6 +127,10 @@ impl Bus {
     fn write_mapped_io_register(&self, cpu: &mut Cpu, offset: u8, data: u8) {
         match offset {
             0x04 => cpu.timer.reset_devider(),
+            0x05 => cpu.timer.set_counter(data),
+            0x06 => cpu.timer.set_modulo(data),
+            0x07 => cpu.timer.set_control(data),
+
             0x0F => {
                 eprintln!("Set FF0F requested: {:b}", data);
                 cpu.interrupt_handler.set_requested(data)
