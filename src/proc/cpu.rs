@@ -17,7 +17,7 @@ pub struct Cpu {
 
     pub(crate) is_halted: bool,
     pub(crate) counter: u64, // count number of executed instructions
-    cycles: u8,
+    pub(crate) cycles: u64,
 }
 
 impl Cpu {
@@ -69,9 +69,9 @@ impl Cpu {
             let fetched = self.read_next_8bit(bus);
             inst = decode_prefixed(fetched);
             self.cycles += 1;
-            eprintln!("fetched: {:x}", fetched);
+            // eprintln!("fetched: {:x}", fetched);
         } else {
-            eprintln!("fetched: {:x}", fetched);
+            // eprintln!("fetched: {:x}", fetched);
         }
         self.cycles += 1;
         inst
@@ -179,7 +179,7 @@ impl Cpu {
         let p1 = bus.read(self, self.regs.pc.wrapping_add(1));
         let p2 = bus.read(self, self.regs.pc.wrapping_add(2));
         let p3 = bus.read(self, self.regs.pc.wrapping_add(3));
-        let result = writeln!(
+        writeln!(
             file,
             concat!(
                 "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} ",
@@ -200,18 +200,13 @@ impl Cpu {
             p1,
             p2,
             p3,
-        );
-        match result {
-            Err(..) => {
-                sleep(Duration::from_millis(200));
-            }
-            _ => (),
-        }
+        )
+        .unwrap();
     }
 
     pub fn execute(&mut self, bus: &mut Bus, inst: Inst) {
         self.counter += 1;
-        eprintln!("{} Inst: {:?} PC:{:x}", self.counter, inst, self.regs.pc);
+        // eprintln!("{} Inst: {:?} PC:{:x}", self.counter, inst, self.regs.pc);
         match inst {
             Inst::Prefix => unreachable!(),
 
@@ -261,8 +256,7 @@ impl Cpu {
             Inst::SetCarryFlag => self.set_flag_carry(),
             Inst::ComplementCarryFlag => self.complement_carry_flag(),
         };
-        eprintln!("Took cycles: {}", self.cycles);
-        self.cycles = 0;
+        // eprintln!("Took cycles: {}", self.cycles);
     }
 
     fn halt(&mut self) {

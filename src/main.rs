@@ -46,6 +46,8 @@ fn main() -> Result<(), String> {
     let mut event_pump = sdl_context.event_pump()?;
     let mut is_paused = false;
 
+    let one_sixtieth = Duration::from_secs_f64(1.0 / 60.0);
+
     'main_loop: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -66,15 +68,26 @@ fn main() -> Result<(), String> {
                 _ => (),
             }
         }
+
+        let before_run = Instant::now();
+        while cpu.cycles <= 69905 {
+            cpu.fetch_and_execute(&mut bus);
+            if print_cpu_debug {
+                cpu.debug_print(&bus, &mut io::stdout());
+                // cpu.debug_print(&bus, &mut io::stderr());
+            }
+        }
+        let delta_time = Instant::now().duration_since(before_run);
+        if delta_time < one_sixtieth {
+            let time_to_sleep = one_sixtieth - delta_time;
+            sleep(time_to_sleep);
+            eprintln!("Done frame, slept: {} ms", time_to_sleep.as_millis());
+        }
+        cpu.cycles = 0;
+
         if is_paused {
             sleep(Duration::from_millis(100));
             continue;
-        }
-
-        cpu.fetch_and_execute(&mut bus);
-        if print_cpu_debug {
-            cpu.debug_print(&bus, &mut io::stdout());
-            cpu.debug_print(&bus, &mut io::stderr());
         }
 
         if show_background && bus.v_ram_dirty {
