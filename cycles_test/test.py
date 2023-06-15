@@ -21,11 +21,11 @@ with open("mine.txt", "r") as f:
             recording[code] = set()
         recording[code].add(int(cycles))
 
-failed = False
+failed = 0
 for opcode in recording:
     for cycle in recording[opcode]:
         if cycle not in expectation[opcode]:
-            failed = True
+            failed += 1
             print(
                 f"Opcode {opcode} "
                 f"{mnemonics[opcode]} took "
@@ -33,6 +33,6 @@ for opcode in recording:
                 f"{expectation[opcode]}"
             )
 
-if failed:
-    print("Test failed")
+if failed > 0:
+    print(f"Test failed: {failed}/{len(recording)} ")
     exit(1)
