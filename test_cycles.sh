@@ -1,6 +1,15 @@
-padded=$(printf "%02d" ${1})
+#!/bin/bash
 
-timeout 3s cargo run --release ./cartridges/${padded}.gb 2> cycles_test/raw.txt
+if [ "$1" == "random" ]; then
+    echo "Testing with random instructions"
+    dd if=/dev/urandom of=random.gb bs=32K count=1
+    rom=random.gb
+else
+    padded=$(printf "%02d" ${1})
+    rom=./cartridges/${padded}.gb
+fi
+
+cargo run --release ${rom} 2> cycles_test/raw.txt
 
 cd cycles_test
 grep '^0x' raw.txt > mine.txt
