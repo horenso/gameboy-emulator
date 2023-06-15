@@ -17,17 +17,18 @@ pub enum Inst {
     Pop(Reg16),
 
     // Jumps
-    Jp(Cond, Operand), // absolute jump
-    Jr(Cond),          // relatve jump
-    Call(Cond),        // call a function
-    Ret(Cond),         // return if condition
-    Reti,              // return and enable interrupts
-    Rst(u8),           // shorthand call to specific locations
+    JumpAddr(Cond),     // absolute jump
+    JumpHl,             // jump to the address stored in HL
+    JumpRelative(Cond), // relatve jump with an 8-bit signed offset
+    Call(Cond),         // call a function
+    Ret(Cond),          // return if condition
+    Reti,               // return and enable interrupts
+    Rst(u8),            // shorthand call to specific locations
 
     // Arithmetic
     Add(Operand),
     AddHl(Reg16),
-    AddSp,        // Add immediate 8-bit signed value to SP
+    AddSp,        // add immediate 8-bit signed value to SP
     Adc(Operand), // add with carry
     Sub(Operand),
     Sbc(Operand), // subtract with carry

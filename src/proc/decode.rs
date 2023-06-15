@@ -13,8 +13,8 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
                 0 => Inst::NoOp,
                 1 => Inst::Ld16(Operand::A16, Operand::R16(Reg16::Sp)),
                 2 => Inst::Stop,
-                3 => Inst::Jr(Cond::Always),
-                4..=7 => Inst::Jr(cond(y - 4)),
+                3 => Inst::JumpRelative(Cond::Always),
+                4..=7 => Inst::JumpRelative(cond(y - 4)),
                 _ => unreachable!(),
             },
             1 if q == 0 => Inst::Ld16(Operand::R16(rp_table(p)), Operand::D16),
@@ -64,12 +64,12 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
             1 => match p {
                 0 => Inst::Ret(Cond::Always),
                 1 => Inst::Reti,
-                2 => Inst::Jp(Cond::Always, Operand::R16(Reg16::Hl)),
+                2 => Inst::JumpHl,
                 3 => Inst::Ld16(Operand::R16(Reg16::Sp), Operand::R16(Reg16::Hl)),
                 _ => unreachable!(),
             },
             2 => match y {
-                0..=3 => Inst::Jp(cond(y), Operand::A16),
+                0..=3 => Inst::JumpAddr(cond(y)),
                 4 => Inst::Ld8(Operand::IndHighPlusC, Operand::R8(Reg8::A)),
                 5 => Inst::Ld8(Operand::A16, Operand::R8(Reg8::A)),
                 6 => Inst::Ld8(Operand::R8(Reg8::A), Operand::IndHighPlusC),
@@ -77,7 +77,7 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
                 _ => unreachable!(),
             },
             3 => match y {
-                0 => Inst::Jp(Cond::Always, Operand::A16), // TODO: Is this A16?
+                0 => Inst::JumpAddr(Cond::Always), // TODO: Is this A16?
                 1 => Inst::Prefix,
                 2..=5 => Inst::NoOp,
                 6 => Inst::Di,

@@ -6,8 +6,6 @@ use super::timer::Timer;
 use crate::bus::Bus;
 use crate::util::helper::{combine_to_u16, split_u16, split_u32};
 use std::io::Write;
-use std::thread::sleep;
-use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Cpu {
@@ -33,14 +31,16 @@ impl Cpu {
     }
 
     pub fn fetch_and_execute(&mut self, bus: &mut Bus) {
+        let cycles_before = self.cycles;
         let inst = self.fetch(bus);
         self.execute(bus, inst);
+        eprint!("{}\n", self.cycles - cycles_before);
         let maybe_jump_address = self.interrupt_handler.handle_interrupts();
         if let Some(jump_address) = maybe_jump_address {
-            eprintln!(
-                "{}: INTERRUPT HAPPEND: Jumping to {:x}",
-                self.counter, jump_address
-            );
+            // eprintln!(
+            //     "{}: INTERRUPT HAPPEND: Jumping to {:x}",
+            //     self.counter, jump_address
+            // );
             self.is_halted = false;
             self.push_and_set_pc(bus, jump_address);
         }
@@ -53,6 +53,7 @@ impl Cpu {
     fn read_next_8bit(&mut self, bus: &Bus) -> u8 {
         let data = bus.read(self, self.regs.pc);
         self.regs.pc = self.regs.pc.wrapping_add(1);
+        self.cycles += 4;
         data
     }
 
@@ -62,18 +63,33 @@ impl Cpu {
         combine_to_u16(high, low)
     }
 
+    fn read_8bit(&mut self, bus: &Bus, addr: u16) -> u8 {
+        self.cycles += 4;
+        bus.read(self, addr)
+    }
+
+    fn write_8bit(&mut self, bus: &mut Bus, addr: u16, data: u8) {
+        bus.write(self, addr, data);
+        self.cycles += 4;
+    }
+
+    fn write_16bit(&mut self, bus: &mut Bus, addr: u16, data: u16) {
+        let (high, low) = split_u16(data);
+        bus.write(self, addr, low);
+        bus.write(self, addr + 1, high);
+        self.cycles += 4;
+    }
+
     fn fetch(&mut self, bus: &mut Bus) -> Inst {
         let fetched = self.read_next_8bit(bus);
         let mut inst = decode_unprefixed(fetched);
         if inst == Inst::Prefix {
             let fetched = self.read_next_8bit(bus);
             inst = decode_prefixed(fetched);
-            self.cycles += 1;
-            // eprintln!("fetched: {:x}", fetched);
+            eprint!("{:#04X} ", fetched);
         } else {
-            // eprintln!("fetched: {:x}", fetched);
+            eprint!("{:#04X} ", fetched);
         }
-        self.cycles += 1;
         inst
     }
 
@@ -136,12 +152,12 @@ impl Cpu {
 
     fn load_indr(&mut self, bus: &Bus, reg: &Reg16) -> u8 {
         let addr = self.get_reg16(reg);
-        bus.read(self, addr)
+        self.read_8bit(bus, addr)
     }
 
     fn save_indr(&mut self, bus: &mut Bus, reg: &Reg16, data: u8) {
         let addr = self.get_reg16(reg);
-        bus.write(self, addr, data);
+        self.write_8bit(bus, addr, data);
     }
 
     fn get_8bit_operand(&mut self, bus: &Bus, operand: &Operand) -> u8 {
@@ -158,13 +174,13 @@ impl Cpu {
             Operand::R8(reg) => self.set_reg8(reg, data),
             Operand::IndR16(reg) => {
                 let addr = self.get_reg16(reg);
-                bus.write(self, addr, data);
+                self.write_8bit(bus, addr, data);
             }
             _ => unreachable!(),
         }
     }
 
-    fn check_cond(&self, cond: Cond) -> bool {
+    fn check_cond(&mut self, cond: &Cond) -> bool {
         match cond {
             Cond::Always => true,
             Cond::Zero => self.regs.zero_flag(),
@@ -205,25 +221,24 @@ impl Cpu {
     }
 
     pub fn execute(&mut self, bus: &mut Bus, inst: Inst) {
-        self.counter += 1;
-        // eprintln!("{} Inst: {:?} PC:{:x}", self.counter, inst, self.regs.pc);
         match inst {
             Inst::Prefix => unreachable!(),
 
             Inst::NoOp => (),
             Inst::Halt => self.halt(),
             Inst::Stop => self.stop(),
-            Inst::Di => self.di(),
-            Inst::Ei => self.ei(),
+            Inst::Di => self.disable_int(),
+            Inst::Ei => self.enable_int(),
 
-            Inst::Ld8(dest, source) => self.ld8(bus, dest, source),
-            Inst::Ld16(dest, source) => self.ld16(bus, dest, source),
+            Inst::Ld8(dest, source) => self.load8(bus, dest, source),
+            Inst::Ld16(dest, source) => self.load16(bus, dest, source),
             Inst::LdHlSp => self.ld_hl_sp_plus_offset(bus),
             Inst::Push(reg) => self.push_stack(bus, reg),
             Inst::Pop(reg) => self.pop_stack(bus, reg),
 
-            Inst::Jr(cond) => self.jump_absolute(bus, cond),
-            Inst::Jp(cond, dest) => self.jump_relative(bus, cond, dest),
+            Inst::JumpAddr(cond) => self.jump_address(bus, cond),
+            Inst::JumpHl => self.jump_hl(),
+            Inst::JumpRelative(cond) => self.jump_relative(bus, cond),
             Inst::Call(cond) => self.call(bus, cond),
             Inst::Ret(cond) => self.ret(bus, cond),
             Inst::Reti => self.reti(bus),
@@ -256,7 +271,6 @@ impl Cpu {
             Inst::SetCarryFlag => self.set_flag_carry(),
             Inst::ComplementCarryFlag => self.complement_carry_flag(),
         };
-        // eprintln!("Took cycles: {}", self.cycles);
     }
 
     fn halt(&mut self) {
@@ -265,31 +279,31 @@ impl Cpu {
 
     fn stop(&self) {
         // TODO: What do we do here?
-        println!("STOPPPPP");
+        // println!("STOPPPPP");
     }
 
-    fn di(&mut self) {
-        eprintln!("di!");
+    fn disable_int(&mut self) {
+        // eprintln!("di!");
         self.interrupt_handler.master_enabled = false;
     }
 
-    fn ei(&mut self) {
-        eprintln!("ei!");
+    fn enable_int(&mut self) {
+        // eprintln!("ei!");
         self.interrupt_handler.master_enabled = true;
     }
 
-    fn ld8(&mut self, bus: &mut Bus, dest: Operand, source: Operand) {
+    fn load8(&mut self, bus: &mut Bus, dest: Operand, source: Operand) {
         let data = match source {
             Operand::D8 => self.read_next_8bit(bus),
             Operand::A8 => {
                 let addr = combine_to_u16(0xFF, self.read_next_8bit(bus));
-                bus.read(self, addr)
+                self.read_8bit(bus, addr)
             }
             Operand::A16 => {
                 let addr = self.read_next_16bit(bus);
-                bus.read(self, addr)
+                self.read_8bit(bus, addr)
             }
-            Operand::IndHighPlusC => bus.read(self, combine_to_u16(0xFF, self.regs.c)),
+            Operand::IndHighPlusC => self.read_8bit(bus, combine_to_u16(0xFF, self.regs.c)),
             Operand::IndR16(reg) => self.load_indr(bus, &reg),
             Operand::R8(reg) => self.get_reg8(&reg),
             _ => unreachable!(),
@@ -297,15 +311,15 @@ impl Cpu {
         match dest {
             Operand::A8 => {
                 let addr = combine_to_u16(0xFF, self.read_next_8bit(bus));
-                bus.write(self, addr, data);
+                self.write_8bit(bus, addr, data);
             }
             Operand::A16 => {
                 let addr = self.read_next_16bit(bus);
-                bus.write(self, addr, data);
+                self.write_8bit(bus, addr, data);
             }
             Operand::IndHighPlusC => {
                 let addr = combine_to_u16(0xFF, self.regs.c);
-                bus.write(self, addr, data)
+                self.write_8bit(bus, addr, data);
             }
             Operand::IndR16(reg) => self.save_indr(bus, &reg, data),
             Operand::R8(reg) => {
@@ -315,29 +329,27 @@ impl Cpu {
         };
     }
 
-    fn ld16(&mut self, bus: &mut Bus, dest: Operand, source: Operand) {
+    fn load16(&mut self, bus: &mut Bus, dest: Operand, source: Operand) {
         let data = match source {
             Operand::D16 => self.read_next_16bit(bus),
-            Operand::R16(reg) => self.get_reg16(&reg),
+            Operand::R16(reg) => {
+                self.cycles += 4;
+                self.get_reg16(&reg)
+            }
             _ => unreachable!(),
         };
         match dest {
             Operand::A8 => {
                 let addr = combine_to_u16(0xFF, self.read_next_8bit(bus));
-                let (high, low) = split_u16(data);
-                bus.write(self, addr, low);
-                bus.write(self, addr + 1, high);
+                self.write_16bit(bus, addr, data);
             }
             Operand::A16 => {
                 let addr = self.read_next_16bit(bus);
-                let (high, low) = split_u16(data);
-                bus.write(self, addr, low);
-                bus.write(self, addr + 1, high);
+                self.write_16bit(bus, addr, data);
             }
             Operand::R16(reg) => self.set_reg16(&reg, data),
             _ => unreachable!(),
         };
-        self.cycles += 2;
     }
 
     fn ld_hl_sp_plus_offset(&mut self, bus: &mut Bus) {
@@ -354,44 +366,44 @@ impl Cpu {
             .set_flag_half_carry(((sp ^ u16_offset ^ result) & 0x10) == 0x10);
         self.regs
             .set_flag_carry(((sp ^ u16_offset ^ result) & 0x100) == 0x100);
+        self.cycles += 4;
     }
 
     fn push_stack(&mut self, bus: &mut Bus, reg: Reg16) {
         let (high, low) = split_u16(self.get_reg16(&reg));
         self.regs.sp -= 1;
-        bus.write(self, self.regs.sp, high);
+        self.write_8bit(bus, self.regs.sp, high);
         self.regs.sp -= 1;
-        bus.write(self, self.regs.sp, low);
+        self.write_8bit(bus, self.regs.sp, low);
+        self.cycles += 4;
     }
 
     fn pop_stack(&mut self, bus: &mut Bus, reg: Reg16) {
-        let low = bus.read(self, self.regs.sp);
+        let low = self.read_8bit(bus, self.regs.sp);
         self.regs.sp += 1;
-        let high = bus.read(self, self.regs.sp);
+        let high = self.read_8bit(bus, self.regs.sp);
         self.regs.sp += 1;
         self.set_reg16(&reg, combine_to_u16(high, low));
     }
 
-    fn jump_absolute(&mut self, bus: &Bus, cond: Cond) {
-        let data = i32::from(self.read_next_8bit(bus) as i8);
-        self.cycles += 1;
-        if self.check_cond(cond) {
-            let result = self.regs.pc as i32 + data;
-            self.regs.pc = result as u16;
-            self.cycles += 1;
+    fn jump_address(&mut self, bus: &Bus, cond: Cond) {
+        let addr = self.read_next_16bit(bus);
+        if self.check_cond(&cond) {
+            self.regs.pc = addr;
+            self.cycles += 4;
         }
     }
 
-    fn jump_relative(&mut self, bus: &Bus, cond: Cond, dest: Operand) {
-        let addr = match dest {
-            Operand::A16 => self.read_next_16bit(bus),
-            Operand::R16(reg) => self.get_reg16(&reg),
-            _ => unreachable!(),
-        };
-        self.cycles += 1;
-        if self.check_cond(cond) {
-            self.regs.pc = addr;
-            self.cycles += 1;
+    fn jump_hl(&mut self) {
+        self.regs.pc = self.regs.hl()
+    }
+
+    fn jump_relative(&mut self, bus: &Bus, cond: Cond) {
+        let data = i32::from(self.read_next_8bit(bus) as i8);
+        if self.check_cond(&cond) {
+            let result = self.regs.pc as i32 + data;
+            self.regs.pc = result as u16;
+            self.cycles += 4;
         }
     }
 
@@ -402,18 +414,18 @@ impl Cpu {
 
     fn call(&mut self, bus: &mut Bus, cond: Cond) {
         let new_address = self.read_next_16bit(bus);
-        self.cycles += 2;
-        if self.check_cond(cond) {
+        if self.check_cond(&cond) {
             self.push_and_set_pc(bus, new_address);
-            self.cycles += 4;
         }
     }
 
     fn ret(&mut self, bus: &mut Bus, cond: Cond) {
-        self.cycles += 1;
-        if self.check_cond(cond) {
+        self.cycles += 4;
+        if self.check_cond(&cond) {
             self.pop_stack(bus, Reg16::Pc);
-            self.cycles += 3;
+            if cond != Cond::Always {
+                self.cycles += 4;
+            }
         }
     }
 
@@ -424,7 +436,6 @@ impl Cpu {
 
     fn rst(&mut self, bus: &mut Bus, offset: u8) {
         self.push_and_set_pc(bus, combine_to_u16(0, offset));
-        self.cycles += 3;
     }
 
     fn add_a(&mut self, bus: &mut Bus, operand: Operand, with_carry: bool) {
@@ -455,6 +466,7 @@ impl Cpu {
         self.regs
             .set_flag_half_carry((data & 0xFFF) + (hl & 0xFFF) > 0xFFF);
         self.regs.set_flag_carry(carry > 0);
+        self.cycles += 4;
     }
 
     fn add_sp(&mut self, bus: &mut Bus) {
@@ -471,6 +483,7 @@ impl Cpu {
             .set_flag_half_carry(((sp ^ u16_data ^ u16_result) & 0x10) == 0x10);
         self.regs
             .set_flag_carry(((sp ^ u16_data ^ u16_result) & 0x100) == 0x100);
+        self.cycles += 8;
     }
 
     fn sub_a(&mut self, bus: &mut Bus, operand: Operand, with_carry: bool, save_back: bool) {
@@ -531,7 +544,7 @@ impl Cpu {
         match operand {
             Operand::IndR16(reg) => {
                 let addr = self.get_reg16(&reg);
-                bus.write(self, addr, result);
+                self.write_8bit(bus, addr, result);
             }
             Operand::R8(reg) => self.set_reg8(&reg, result),
             _ => unreachable!(),
@@ -542,7 +555,7 @@ impl Cpu {
         let data = self.get_reg16(&reg);
         let sum = data.wrapping_add(1);
         self.set_reg16(&reg, sum);
-        self.cycles += 1;
+        self.cycles += 4;
     }
 
     fn dec8(&mut self, bus: &mut Bus, operand: Operand) {
@@ -554,7 +567,7 @@ impl Cpu {
         match operand {
             Operand::IndR16(reg) => {
                 let addr = self.get_reg16(&reg);
-                bus.write(self, addr, result);
+                self.write_8bit(bus, addr, result);
             }
             Operand::R8(reg) => self.set_reg8(&reg, result),
             _ => unreachable!(),
@@ -565,7 +578,7 @@ impl Cpu {
         let data = self.get_reg16(&reg);
         let result = data.wrapping_sub(1);
         self.set_reg16(&reg, result);
-        self.cycles += 1;
+        self.cycles += 4;
     }
 
     fn rotate(&mut self, bus: &mut Bus, direction: Rotation, operand: Operand, set_zero: bool) {

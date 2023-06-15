@@ -27,9 +27,9 @@ impl Timer {
         if !self.is_enabled {
             return;
         }
-        eprintln!("Divider {}", self.divider);
+        // eprintln!("Divider {}", self.divider);
         if self.divider == 0 {
-            eprintln!("Divider overflowed!");
+            // eprintln!("Divider overflowed!");
         }
     }
 
@@ -65,9 +65,9 @@ impl Timer {
         self.control = data;
         self.is_enabled = data & 0b100 != 0;
         self.timer_speed = (data & 0b11) as u16;
-        eprintln!(
-            "Set timer control {:x} {} {}",
-            self.control, self.is_enabled, self.timer_speed
-        );
+        // eprintln!(
+        //     "Set timer control {:x} {} {}",
+        //     self.control, self.is_enabled, self.timer_speed
+        // );
     }
 }
