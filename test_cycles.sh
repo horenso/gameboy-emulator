@@ -12,7 +12,7 @@ fi
 cargo run --release ${rom} 2> cycles_test/raw.txt
 
 cd cycles_test
-grep '^0x' raw.txt > mine.txt
-rm raw.txt
+grep -E '^0x|^pre' raw.txt > mine.txt
+# rm raw.txt
 ./test.py
-rm mine.txt
+# rm mine.txt

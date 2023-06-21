@@ -81,15 +81,14 @@ impl Cpu {
     }
 
     fn fetch(&mut self, bus: &mut Bus) -> Inst {
-        let fetched = self.read_next_8bit(bus);
+        let mut fetched = self.read_next_8bit(bus);
         let mut inst = decode_unprefixed(fetched);
         if inst == Inst::Prefix {
-            let fetched = self.read_next_8bit(bus);
+            fetched = self.read_next_8bit(bus);
             inst = decode_prefixed(fetched);
-            eprint!("{:#04X} ", fetched);
-        } else {
-            eprint!("{:#04X} ", fetched);
+            eprint!("pre ");
         }
+        eprint!("{:#04X} ", fetched);
         inst
     }
 
@@ -399,7 +398,7 @@ impl Cpu {
     }
 
     fn jump_relative(&mut self, bus: &Bus, cond: Cond) {
-        let data = i32::from(self.read_next_8bit(bus) as i8);
+        let data = (self.read_next_8bit(bus) as i8) as i32;
         if self.check_cond(&cond) {
             let result = self.regs.pc as i32 + data;
             self.regs.pc = result as u16;
