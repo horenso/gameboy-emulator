@@ -2,3 +2,5 @@ target/
 cartridges/
 logs/
 .vscode/
+cycles_test/raw.txt
+cycles_test/mine.txt

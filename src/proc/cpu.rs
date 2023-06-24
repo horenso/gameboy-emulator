@@ -4,6 +4,7 @@ use super::interrupts::InterruptHandler;
 use super::registers::Registers;
 use super::timer::Timer;
 use crate::bus::Bus;
+use crate::proc::interrupts::Interrupt;
 use crate::util::helper::{combine_to_u16, split_u16, split_u32};
 use std::io::Write;
 
@@ -31,22 +32,32 @@ impl Cpu {
     }
 
     pub fn fetch_and_execute(&mut self, bus: &mut Bus) {
-        let cycles_before = self.cycles;
-        let inst = self.fetch(bus);
-        self.execute(bus, inst);
-        eprint!("{}\n", self.cycles - cycles_before);
+        let cycles_passed: u8 = if self.is_halted {
+            eprintln!(
+                "{}: CPU is halted: {:?} {:?}",
+                self.counter, self.timer, self.interrupt_handler
+            );
+            4
+        } else {
+            let cycles_before = self.cycles;
+            let inst = self.fetch(bus);
+            self.execute(bus, inst);
+            (self.cycles - cycles_before) as u8
+        };
+        self.counter += 1;
+
+        if self.timer.update(cycles_passed) {
+            self.interrupt_handler.request_interrupt(Interrupt::Timer);
+        }
+
         let maybe_jump_address = self.interrupt_handler.handle_interrupts();
         if let Some(jump_address) = maybe_jump_address {
-            // eprintln!(
-            //     "{}: INTERRUPT HAPPEND: Jumping to {:x}",
-            //     self.counter, jump_address
-            // );
+            eprintln!("INTERRUPT HAPPENED: Jumping to {:x}", jump_address);
             self.is_halted = false;
             self.push_and_set_pc(bus, jump_address);
-        }
-        if self.is_halted {
-            eprintln!("Cpu is halted: {:?}", self.interrupt_handler);
             return;
+        } else if self.interrupt_handler.is_interrupt_pending() {
+            self.is_halted = false;
         }
     }
 
@@ -86,9 +97,9 @@ impl Cpu {
         if inst == Inst::Prefix {
             fetched = self.read_next_8bit(bus);
             inst = decode_prefixed(fetched);
-            eprint!("pre ");
+            // eprint!("pre ");
         }
-        eprint!("{:#04X} ", fetched);
+        // eprint!("{:#04X} ", fetched);
         inst
     }
 
@@ -273,12 +284,13 @@ impl Cpu {
     }
 
     fn halt(&mut self) {
+        eprintln!("HALT!!!");
         self.is_halted = true;
     }
 
     fn stop(&self) {
         // TODO: What do we do here?
-        // println!("STOPPPPP");
+        eprintln!("STOPPPPP");
     }
 
     fn disable_int(&mut self) {

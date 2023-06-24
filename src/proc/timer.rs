@@ -1,43 +1,53 @@
 #[derive(Debug)]
 pub struct Timer {
-    divider: u16,
-    counter: u8,
-    modulo: u8,
+    divider: u16, // DIV: divider register
+    counter: u8,  // TIMA: timer counter
+    modulo: u8,   // TMA: timer modulo
+    control: u8,  // TAC: timer control
 
-    control: u8,
     is_enabled: bool,
-
-    timer_speed: u16,
+    mask: u16,
 }
 
 impl Timer {
     pub fn new() -> Timer {
         Timer {
-            divider: 0,
+            // Appearenly this is the div value after the boot rom
+            divider: 0, // 0xABCC,
             counter: 0,
             modulo: 0,
             control: 5, // enabled and speed 1
+
             is_enabled: true,
-            timer_speed: 1024,
+            mask: 0xFC00,
         }
     }
 
-    pub fn tick(&mut self, cycles: u8) {
-        self.divider = self.divider.wrapping_add(1);
+    pub fn update(&mut self, cycles: u8) -> bool {
+        let prev_divider = self.divider;
+        self.divider = self.divider.wrapping_add(cycles as u16);
         if !self.is_enabled {
-            return;
+            return false;
         }
-        // eprintln!("Divider {}", self.divider);
-        if self.divider == 0 {
-            // eprintln!("Divider overflowed!");
+
+        let update_timer = (self.divider & self.mask) != (prev_divider & self.mask);
+
+        if update_timer {
+            if self.counter == 0xFF {
+                self.counter = self.modulo;
+                return true;
+            } else {
+                self.counter += 1;
+            }
         }
+        false
     }
 
-    pub fn devider(&self) -> u8 {
+    pub fn divider(&self) -> u8 {
         (self.divider >> 8) as u8
     }
 
-    pub fn reset_devider(&mut self) {
+    pub fn reset_divider(&mut self) {
         self.divider = 0;
     }
 
@@ -64,10 +74,12 @@ impl Timer {
     pub fn set_control(&mut self, data: u8) {
         self.control = data;
         self.is_enabled = data & 0b100 != 0;
-        self.timer_speed = (data & 0b11) as u16;
-        // eprintln!(
-        //     "Set timer control {:x} {} {}",
-        //     self.control, self.is_enabled, self.timer_speed
-        // );
+        self.mask = match data & 0b11 {
+            0 => 0xFC00, // >= 1024
+            1 => 0xFFF0, // >= 16
+            2 => 0xFFC0, // >= 64
+            3 => 0xFF00, // >= 256
+            _ => unreachable!(),
+        };
     }
 }

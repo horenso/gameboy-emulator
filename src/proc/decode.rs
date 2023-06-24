@@ -48,7 +48,7 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
             },
             _ => unreachable!(),
         },
-        1 if y == 0 && z == 0 => Inst::Halt,
+        1 if y == 6 && z == 6 => Inst::Halt,
         1 => Inst::Ld8(operand(y), operand(z)),
         2 => arithmetic_logic(y, z, false),
         3 => match z {
@@ -183,7 +183,9 @@ mod tests {
     use super::{decode_prefixed, *};
 
     #[test]
-    fn test_decode_unprefixed() {}
+    fn test_decode_unprefixed() {
+        assert_eq!(decode_unprefixed(0x76), Inst::Halt);
+    }
 
     #[test]
     fn test_decode_prefixed() {

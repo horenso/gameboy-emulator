@@ -1,4 +1,4 @@
-enum Interrupt {
+pub enum Interrupt {
     VBlank,
     LcdStat,
     Timer,
@@ -40,8 +40,8 @@ static INTERRUPT_PRIORITY: &[Interrupt] = &[
 #[derive(Debug)]
 pub struct InterruptHandler {
     pub(crate) master_enabled: bool,
-    enabled: u8,
-    requested: u8,
+    enabled: u8,   // IE: interrupt enable
+    requested: u8, // IF: interrupt flag
 }
 
 impl InterruptHandler {
@@ -54,7 +54,7 @@ impl InterruptHandler {
     }
 
     pub fn handle_interrupts(&mut self) -> Option<u16> {
-        if !self.master_enabled || self.requested & self.enabled == 0 {
+        if !(self.master_enabled && self.is_interrupt_pending()) {
             return Option::None;
         }
 
@@ -65,6 +65,10 @@ impl InterruptHandler {
             }
         }
         Option::None
+    }
+
+    pub fn is_interrupt_pending(&self) -> bool {
+        self.requested & self.enabled != 0
     }
 
     fn handle_interrupt(&mut self, interrupt: &Interrupt) -> Option<u16> {
@@ -90,5 +94,9 @@ impl InterruptHandler {
 
     pub fn set_requested(&mut self, data: u8) {
         self.requested = data & 0b0001_1111;
+    }
+
+    pub fn request_interrupt(&mut self, interrupt: Interrupt) {
+        self.requested |= interrupt.bit();
     }
 }

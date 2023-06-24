@@ -65,7 +65,7 @@ impl Bus {
                 self.h_ram[h_ram_address]
             }
             INTERRUPT_ENABLED => {
-                eprintln!("Read from FFFF, got: {}", cpu.interrupt_handler.enabled());
+                // eprintln!("Read from FFFF, got: {}", cpu.interrupt_handler.enabled());
                 cpu.interrupt_handler.enabled()
             }
             _ => 0, // TODO: _ => unreachable!(),
@@ -74,20 +74,20 @@ impl Bus {
 
     fn read_mapped_io_register(&self, cpu: &Cpu, offset: u8) -> u8 {
         match offset {
-            0x04 => cpu.timer.devider(),
+            0x04 => cpu.timer.divider(),
             0x05 => cpu.timer.counter(),
             0x06 => cpu.timer.modulo(),
             0x07 => cpu.timer.control(),
 
             0x0F => {
-                eprintln!(
-                    "Reading from FF0F, got {:b}",
-                    cpu.interrupt_handler.requested()
-                );
+                // eprintln!(
+                //     "Reading from FF0F, got {:b}",
+                //     cpu.interrupt_handler.requested()
+                // );
                 cpu.interrupt_handler.requested()
             }
             _ => {
-                eprintln!("{} is not mapped yet!", offset);
+                // eprintln!("{} is not mapped yet!", offset);
                 0
             }
         }
@@ -97,7 +97,7 @@ impl Bus {
         // println!("Writing to address: {:#x} data: {:#x}", address, data);
         match address {
             CART_START..=CART_END => {
-                eprintln!("Writting to cartridge at {:x}", address);
+                // eprintln!("Writting to cartridge at {:x}", address);
             }
             V_RAM_START..=V_RAM_END => {
                 let v_ram_address = (address - V_RAM_START) as usize;
@@ -117,25 +117,26 @@ impl Bus {
                 self.h_ram[h_ram_address] = data
             }
             INTERRUPT_ENABLED => {
-                eprintln!("Writting to FFFF to enable {:b}", data);
+                // eprintln!("Writting to FFFF to enable {:b}", data);
                 cpu.interrupt_handler.set_enabled(data);
             }
-            _ => unreachable!(),
+            _ => (), // TODO: unreachable
         }
     }
 
     fn write_mapped_io_register(&self, cpu: &mut Cpu, offset: u8, data: u8) {
         match offset {
-            0x04 => cpu.timer.reset_devider(),
+            0x04 => cpu.timer.reset_divider(),
             0x05 => cpu.timer.set_counter(data),
             0x06 => cpu.timer.set_modulo(data),
             0x07 => cpu.timer.set_control(data),
 
             0x0F => {
-                eprintln!("Set FF0F requested: {:b}", data);
+                // eprintln!("Set FF0F requested: {:b}", data);
                 cpu.interrupt_handler.set_requested(data)
             }
-            _ => eprintln!("{} is not mapped yet!", offset),
+            // _ => eprintln!("{} is not mapped yet!", offset),
+            _ => (),
         }
     }
 }

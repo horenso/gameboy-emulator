@@ -153,7 +153,8 @@ mod tests {
 
         regs.set_af(0xABCD);
         assert_eq!(regs.a, 0xAB);
-        assert_eq!(regs.f, 0xCD);
+        // The lower 4 bits of F are always unset
+        assert_eq!(regs.f, 0xC0);
 
         // BC
         regs.b = 0xBB;

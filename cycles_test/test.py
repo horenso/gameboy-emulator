@@ -1,59 +1,72 @@
 #! /usr/bin/env python3
 
 import json
-from typing import Mapping, Set
+from typing import Mapping, Set, Tuple
 
 
 def pre(code: str) -> str:
     return f"pre{code}"
 
 
-with open("./opcodes.json") as f:
-    data = json.load(f)
-    unprefixed = data["unprefixed"]
-    prefixed = data["cbprefixed"]
+def getExpectationsAndMnemonics(path: str) -> Tuple[Mapping[str, set[int]], Mapping[str, str]]:
+    with open(path, "r") as f:
+        data = json.load(f)
+        unprefixed = data["unprefixed"]
+        prefixed = data["cbprefixed"]
 
-expectation: Mapping[str, Set[int]] = {
-    **{
-        k: set(v["cycles"]) for k, v in unprefixed.items()
-    },
-    **{
-        pre(k): set(v["cycles"]) for k, v in prefixed.items()
+    expectations: Mapping[str, Set[int]] = {
+        **{
+            k: set(v["cycles"]) for k, v in unprefixed.items()
+        },
+        **{
+            pre(k): set(v["cycles"]) for k, v in prefixed.items()
+        }
     }
-}
-mnemonics: Mapping[str, str] = {
-    **{
-        k: v["mnemonic"] for k, v in unprefixed.items()
-    },
-    **{
-        pre(k): v["mnemonic"] for k, v in prefixed.items()
+    mnemonics: Mapping[str, str] = {
+        **{
+            k: v["mnemonic"] for k, v in unprefixed.items()
+        },
+        **{
+            pre(k): v["mnemonic"] for k, v in prefixed.items()
+        }
     }
-}
+    return (expectations, mnemonics)
 
-recording: Mapping[str, Set[int]] = dict()
-with open("mine.txt", "r") as f:
-    for line in f.readlines():
-        if line.startswith("pre"):
-            _, code, cycle = line.split(" ")
-            code = pre(code)
-        else:
-            code, cycles = line.split(" ")
-        if code not in recording:
-            recording[code] = set()
-        recording[code].add(int(cycles))
 
-failed = 0
-for opcode in recording:
-    for cycle in recording[opcode]:
-        if cycle not in expectation[opcode]:
-            failed += 1
-            print(
-                f"Opcode {opcode} "
-                f"{mnemonics[opcode]} took "
-                f"{cycle} but expects "
-                f"{expectation[opcode]}"
-            )
+def getRecording(path: str) -> Mapping[str, Set[int]]:
+    recording: Mapping[str, Set[int]] = dict()
+    with open(path, "r") as f:
+        for line in f.readlines():
+            if line.startswith("pre"):
+                _, code, cycles = line.split(" ")
+                code = pre(code)
+            else:
+                code, cycles = line.split(" ")
+            if code not in recording:
+                recording[code] = set()
+            recording[code].add(int(cycles))
+    return recording
 
-if failed > 0:
-    print(f"Test failed: {failed}/{len(recording)} ")
-    exit(1)
+
+def check(expectations: Mapping[str, set[int]], recording: Mapping[str, Set[int]], mnemonics: Mapping[str, str]):
+    failed = 0
+    for opcode in recording:
+        for cycle in recording[opcode]:
+            if cycle not in expectations[opcode]:
+                failed += 1
+                print(
+                    f"Opcode {opcode} "
+                    f"{mnemonics[opcode]} took "
+                    f"{cycle} (others {recording[opcode]}) "
+                    f"but expects {expectations[opcode]}"
+                )
+
+    if failed > 0:
+        print(f"Test failed: {failed}/{len(recording)} ")
+        exit(1)
+
+
+if __name__ == '__main__':
+    expectations, mnemonics = getExpectationsAndMnemonics("./opcodes.json")
+    recording = getRecording("mine.txt")
+    check(expectations, recording, mnemonics)

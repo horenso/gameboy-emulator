@@ -15,6 +15,10 @@ use std::thread::sleep;
 use std::time::{Duration, Instant};
 use video::Video;
 
+const FREQUENCY_HZ: u64 = 4194304;
+const CYCLES_IN_ONE_SIXTIETH_S: u64 = 69905;
+const ONE_SIXTIETH_S: Duration = Duration::from_nanos(16_666_667);
+
 #[derive(Parser)]
 #[command(author)]
 struct Args {
@@ -23,7 +27,7 @@ struct Args {
     debug_print: bool,
 
     /// Draw background and tile data
-    #[arg(short = 'b', long = "draw-bg", default_value_t = false)]
+    #[arg(short = 'b', long = "draw-bg", default_value_t = true)]
     draw_background: bool,
 
     /// The path to the rom
@@ -45,8 +49,6 @@ fn main() -> Result<(), String> {
 
     let mut event_pump = sdl_context.event_pump()?;
     let mut is_paused = false;
-
-    let one_sixtieth = Duration::from_secs_f64(1.0 / 60.0);
 
     'main_loop: loop {
         for event in event_pump.poll_iter() {
@@ -70,7 +72,7 @@ fn main() -> Result<(), String> {
         }
 
         let before_run = Instant::now();
-        while cpu.cycles <= 69905 {
+        while cpu.cycles < CYCLES_IN_ONE_SIXTIETH_S {
             cpu.fetch_and_execute(&mut bus);
             if print_cpu_debug {
                 cpu.debug_print(&bus, &mut io::stdout());
@@ -78,10 +80,10 @@ fn main() -> Result<(), String> {
             }
         }
         let delta_time = Instant::now().duration_since(before_run);
-        if delta_time < one_sixtieth {
-            let time_to_sleep = one_sixtieth - delta_time;
+        if delta_time < ONE_SIXTIETH_S {
+            let time_to_sleep = ONE_SIXTIETH_S - delta_time;
             sleep(time_to_sleep);
-            eprintln!("Done frame, slept: {} ms", time_to_sleep.as_millis());
+            // eprintln!("Done frame, slept: {} ms", time_to_sleep.as_millis());
         }
         cpu.cycles = 0;
 
@@ -97,8 +99,9 @@ fn main() -> Result<(), String> {
             bus.v_ram_dirty = false;
 
             let elapsed = now.elapsed();
-            eprintln!("Elapsed: {:.2?}", elapsed);
+            eprintln!("Drawing took: {:.2?}", elapsed);
         }
     }
+    // eprintln!("Ran for {} cycles", cpu.counter);
     Ok(())
 }
