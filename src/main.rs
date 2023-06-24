@@ -38,6 +38,7 @@ fn main() -> Result<(), String> {
     let args = Args::parse();
 
     let cartridge = Cartridge::load_from_file(args.rom_path.to_str().unwrap())?;
+    cartridge.print_info();
     let print_cpu_debug = args.debug_print;
     let mut show_background = args.draw_background;
 
@@ -83,7 +84,7 @@ fn main() -> Result<(), String> {
         if delta_time < ONE_SIXTIETH_S {
             let time_to_sleep = ONE_SIXTIETH_S - delta_time;
             sleep(time_to_sleep);
-            // eprintln!("Done frame, slept: {} ms", time_to_sleep.as_millis());
+            eprintln!("Done frame, slept: {} ms", time_to_sleep.as_millis());
         }
         cpu.cycles = 0;
 
