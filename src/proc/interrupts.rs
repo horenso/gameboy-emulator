@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 pub enum Interrupt {
     VBlank,
     LcdStat,
@@ -53,14 +54,14 @@ impl InterruptHandler {
         }
     }
 
-    pub fn handle_interrupts(&mut self) -> Option<u16> {
+    pub fn handle_interrupts(&mut self) -> Option<Interrupt> {
         if !(self.master_enabled && self.is_interrupt_pending()) {
             return Option::None;
         }
 
         for interrupt in INTERRUPT_PRIORITY {
             let result = self.handle_interrupt(interrupt);
-            if let Some(..) = result {
+            if result.is_some() {
                 return result;
             }
         }
@@ -71,13 +72,13 @@ impl InterruptHandler {
         self.requested & self.enabled != 0
     }
 
-    fn handle_interrupt(&mut self, interrupt: &Interrupt) -> Option<u16> {
+    fn handle_interrupt(&mut self, interrupt: &Interrupt) -> Option<Interrupt> {
         if self.enabled & interrupt.bit() == 0 {
             return Option::None;
         }
         self.master_enabled = false;
         self.requested &= !interrupt.bit();
-        Option::Some(interrupt.address())
+        Option::Some(interrupt.clone())
     }
 
     pub fn enabled(&self) -> u8 {

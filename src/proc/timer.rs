@@ -12,18 +12,22 @@ pub struct Timer {
 impl Timer {
     pub fn new() -> Timer {
         Timer {
-            // Appearenly this is the div value after the boot rom
-            divider: 0, // 0xABCC,
+            // Appearenly this is the divider value after the boot rom (PC=0x0100)
+            // according to the Cycle Accurate Game Boy Docs
+            divider: 0,
             counter: 0,
             modulo: 0,
             control: 5, // enabled and speed 1
 
             is_enabled: true,
+            // To mask off the part of the divider that we don't care about
+            // e.g if the speed is 0 we care about every 1024th cycle
+            // therefore only about the uppermost 0xFC00 bits.
             mask: 0xFC00,
         }
     }
 
-    pub fn update(&mut self, cycles: u8) -> bool {
+    pub fn tick_timer(&mut self, cycles: u8) -> bool {
         let prev_divider = self.divider;
         self.divider = self.divider.wrapping_add(cycles as u16);
         if !self.is_enabled {
@@ -73,6 +77,8 @@ impl Timer {
 
     pub fn set_control(&mut self, data: u8) {
         self.control = data;
+        // control is only a 3-bit register
+        // self.control = data & 0b111;
         self.is_enabled = data & 0b100 != 0;
         self.mask = match data & 0b11 {
             0 => 0xFC00, // >= 1024

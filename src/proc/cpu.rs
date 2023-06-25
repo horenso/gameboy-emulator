@@ -17,6 +17,8 @@ pub struct Cpu {
     pub(crate) is_halted: bool,
     pub(crate) counter: u64, // count number of executed instructions
     pub(crate) cycles: u64,
+
+    interrupt_timer_next: bool,
 }
 
 impl Cpu {
@@ -28,43 +30,52 @@ impl Cpu {
             is_halted: false,
             counter: 0,
             cycles: 0,
+            interrupt_timer_next: false,
         }
     }
 
     pub fn fetch_and_execute(&mut self, bus: &mut Bus) {
-        let cycles_passed: u8 = if self.is_halted {
+        if self.is_halted {
             eprintln!(
                 "{}: CPU is halted: {:?} {:?}",
                 self.counter, self.timer, self.interrupt_handler
             );
-            4
+            self.tick_machine_cycles(1);
         } else {
-            let cycles_before = self.cycles;
             let inst = self.fetch(bus);
             self.execute(bus, inst);
-            (self.cycles - cycles_before) as u8
         };
         self.counter += 1;
 
-        if self.timer.update(cycles_passed) {
-            self.interrupt_handler.request_interrupt(Interrupt::Timer);
+        if self.interrupt_handler.is_interrupt_pending() {
+            self.is_halted = false;
+            let maybe_interrupt = self.interrupt_handler.handle_interrupts();
+            if let Some(interrupt) = maybe_interrupt {
+                eprintln!("INTERRUPT HAPPENED: {:?}", interrupt);
+                let jump_address = interrupt.address();
+                self.push_and_set_pc(bus, jump_address); // takes 3 machine cycles
+                self.tick_machine_cycles(2);
+                self.interrupt_handler.master_enabled = false;
+            }
         }
+    }
 
-        let maybe_jump_address = self.interrupt_handler.handle_interrupts();
-        if let Some(jump_address) = maybe_jump_address {
-            eprintln!("INTERRUPT HAPPENED: Jumping to {:x}", jump_address);
-            self.is_halted = false;
-            self.push_and_set_pc(bus, jump_address);
-            return;
-        } else if self.interrupt_handler.is_interrupt_pending() {
-            self.is_halted = false;
+    fn tick_machine_cycles(&mut self, machine_cycles: u8) {
+        let cycles = machine_cycles * 4;
+        self.cycles += cycles as u64;
+        if self.interrupt_timer_next {
+            self.interrupt_handler.request_interrupt(Interrupt::Timer);
+            self.interrupt_timer_next = false;
+        }
+        if self.timer.tick_timer(cycles) {
+            self.interrupt_timer_next = true;
         }
     }
 
     fn read_next_8bit(&mut self, bus: &Bus) -> u8 {
         let data = bus.read(self, self.regs.pc);
         self.regs.pc = self.regs.pc.wrapping_add(1);
-        self.cycles += 4;
+        self.tick_machine_cycles(1);
         data
     }
 
@@ -75,20 +86,21 @@ impl Cpu {
     }
 
     fn read_8bit(&mut self, bus: &Bus, addr: u16) -> u8 {
-        self.cycles += 4;
-        bus.read(self, addr)
+        let data = bus.read(self, addr);
+        self.tick_machine_cycles(1);
+        data
     }
 
     fn write_8bit(&mut self, bus: &mut Bus, addr: u16, data: u8) {
         bus.write(self, addr, data);
-        self.cycles += 4;
+        self.tick_machine_cycles(1);
     }
 
     fn write_16bit(&mut self, bus: &mut Bus, addr: u16, data: u16) {
         let (high, low) = split_u16(data);
         bus.write(self, addr, low);
         bus.write(self, addr + 1, high);
-        self.cycles += 4;
+        self.tick_machine_cycles(1);
     }
 
     fn fetch(&mut self, bus: &mut Bus) -> Inst {
@@ -344,8 +356,9 @@ impl Cpu {
         let data = match source {
             Operand::D16 => self.read_next_16bit(bus),
             Operand::R16(reg) => {
-                self.cycles += 4;
-                self.get_reg16(&reg)
+                let result = self.get_reg16(&reg);
+                self.tick_machine_cycles(1);
+                result
             }
             _ => unreachable!(),
         };
@@ -377,7 +390,7 @@ impl Cpu {
             .set_flag_half_carry(((sp ^ u16_offset ^ result) & 0x10) == 0x10);
         self.regs
             .set_flag_carry(((sp ^ u16_offset ^ result) & 0x100) == 0x100);
-        self.cycles += 4;
+        self.tick_machine_cycles(1);
     }
 
     fn push_stack(&mut self, bus: &mut Bus, reg: Reg16) {
@@ -386,7 +399,7 @@ impl Cpu {
         self.write_8bit(bus, self.regs.sp, high);
         self.regs.sp -= 1;
         self.write_8bit(bus, self.regs.sp, low);
-        self.cycles += 4;
+        self.tick_machine_cycles(1);
     }
 
     fn pop_stack(&mut self, bus: &mut Bus, reg: Reg16) {
@@ -401,7 +414,7 @@ impl Cpu {
         let addr = self.read_next_16bit(bus);
         if self.check_cond(&cond) {
             self.regs.pc = addr;
-            self.cycles += 4;
+            self.tick_machine_cycles(1);
         }
     }
 
@@ -414,7 +427,7 @@ impl Cpu {
         if self.check_cond(&cond) {
             let result = self.regs.pc as i32 + data;
             self.regs.pc = result as u16;
-            self.cycles += 4;
+            self.tick_machine_cycles(1);
         }
     }
 
@@ -431,11 +444,11 @@ impl Cpu {
     }
 
     fn ret(&mut self, bus: &mut Bus, cond: Cond) {
-        self.cycles += 4;
+        self.tick_machine_cycles(1);
         if self.check_cond(&cond) {
             self.pop_stack(bus, Reg16::Pc);
             if cond != Cond::Always {
-                self.cycles += 4;
+                self.tick_machine_cycles(1);
             }
         }
     }
@@ -477,7 +490,7 @@ impl Cpu {
         self.regs
             .set_flag_half_carry((data & 0xFFF) + (hl & 0xFFF) > 0xFFF);
         self.regs.set_flag_carry(carry > 0);
-        self.cycles += 4;
+        self.tick_machine_cycles(1);
     }
 
     fn add_sp(&mut self, bus: &mut Bus) {
@@ -494,7 +507,7 @@ impl Cpu {
             .set_flag_half_carry(((sp ^ u16_data ^ u16_result) & 0x10) == 0x10);
         self.regs
             .set_flag_carry(((sp ^ u16_data ^ u16_result) & 0x100) == 0x100);
-        self.cycles += 8;
+        self.tick_machine_cycles(2);
     }
 
     fn sub_a(&mut self, bus: &mut Bus, operand: Operand, with_carry: bool, save_back: bool) {
@@ -566,7 +579,7 @@ impl Cpu {
         let data = self.get_reg16(&reg);
         let sum = data.wrapping_add(1);
         self.set_reg16(&reg, sum);
-        self.cycles += 4;
+        self.tick_machine_cycles(1);
     }
 
     fn dec8(&mut self, bus: &mut Bus, operand: Operand) {
@@ -589,7 +602,7 @@ impl Cpu {
         let data = self.get_reg16(&reg);
         let result = data.wrapping_sub(1);
         self.set_reg16(&reg, result);
-        self.cycles += 4;
+        self.tick_machine_cycles(1);
     }
 
     fn rotate(&mut self, bus: &mut Bus, direction: Rotation, operand: Operand, set_zero: bool) {
