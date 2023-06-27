@@ -27,9 +27,9 @@ impl Timer {
         }
     }
 
-    pub fn tick_timer(&mut self, cycles: u8) -> bool {
+    pub fn tick(&mut self) -> bool {
         let prev_divider = self.divider;
-        self.divider = self.divider.wrapping_add(cycles as u16);
+        self.divider = self.divider.wrapping_add(1);
         if !self.is_enabled {
             return false;
         }

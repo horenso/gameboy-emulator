@@ -1,19 +1,19 @@
 mod bus;
 mod cartridge;
+mod ppu;
 mod proc;
 mod util;
-mod video;
 
 use bus::Bus;
 use cartridge::Cartridge;
 use clap::Parser;
+use ppu::Ppu;
 use proc::cpu::Cpu;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::io;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-use video::Video;
 
 const FREQUENCY_HZ: u64 = 4194304;
 const CYCLES_IN_ONE_SIXTIETH_S: u64 = 69905;
@@ -46,7 +46,7 @@ fn main() -> Result<(), String> {
     let mut bus = Bus::new(cartridge);
 
     let sdl_context = sdl2::init()?;
-    let mut video = Video::new(&sdl_context);
+    let mut video = Ppu::new(&sdl_context);
 
     let mut event_pump = sdl_context.event_pump()?;
     let mut is_paused = false;
@@ -60,7 +60,7 @@ fn main() -> Result<(), String> {
                 } => match key {
                     Keycode::Escape => break 'main_loop,
                     Keycode::P => {
-                        is_paused = !is_paused;
+                        is_paused = false;
                         if is_paused {
                             println!("Paused!")
                         }
@@ -72,25 +72,17 @@ fn main() -> Result<(), String> {
             }
         }
 
-        let before_run = Instant::now();
-        while cpu.cycles < CYCLES_IN_ONE_SIXTIETH_S {
-            cpu.fetch_and_execute(&mut bus);
-            if print_cpu_debug {
-                cpu.debug_print(&bus, &mut io::stdout());
-                // cpu.debug_print(&bus, &mut io::stderr());
-            }
-        }
-        let delta_time = Instant::now().duration_since(before_run);
-        if delta_time < ONE_SIXTIETH_S {
-            let time_to_sleep = ONE_SIXTIETH_S - delta_time;
-            sleep(time_to_sleep);
-            eprintln!("Done frame, slept: {} ms", time_to_sleep.as_millis());
-        }
-        cpu.cycles = 0;
-
         if is_paused {
             sleep(Duration::from_millis(100));
             continue;
+        }
+
+        let before_run = Instant::now();
+        while cpu.cycles < CYCLES_IN_ONE_SIXTIETH_S {
+            if print_cpu_debug {
+                cpu.debug_print(&bus, &mut io::stdout());
+            }
+            cpu.fetch_and_execute(&mut bus);
         }
 
         if show_background && bus.v_ram_dirty {
@@ -99,9 +91,16 @@ fn main() -> Result<(), String> {
             video.draw(&bus, &cpu);
             bus.v_ram_dirty = false;
 
-            let elapsed = now.elapsed();
-            eprintln!("Drawing took: {:.2?}", elapsed);
+            eprintln!("Drawing took: {:.2?}", now.elapsed());
         }
+
+        let delta_time = before_run.elapsed();
+        if delta_time < ONE_SIXTIETH_S {
+            let time_to_sleep = ONE_SIXTIETH_S - delta_time;
+            sleep(time_to_sleep);
+            eprintln!("Done frame, slept: {} ms", time_to_sleep.as_millis());
+        }
+        cpu.cycles = 0;
     }
     // eprintln!("Ran for {} cycles", cpu.counter);
     Ok(())

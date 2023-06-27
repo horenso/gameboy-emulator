@@ -36,7 +36,7 @@ impl Registers {
             e: 0x00D8,
             h: 0x0001,
             l: 0x004D,
-            pc: 0x00FF, // The entrypoint after the Nintendo internal ROM
+            pc: 0x0100, // The entrypoint after the Nintendo internal ROM
             sp: 0xFFFE,
         }
     }

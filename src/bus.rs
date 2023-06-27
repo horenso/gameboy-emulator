@@ -1,9 +1,14 @@
+use std::arch::x86_64::CpuidResult;
+use std::borrow::BorrowMut;
+use std::cell::RefCell;
+
 use crate::cartridge::Cartridge;
 use crate::proc::cpu::Cpu;
-use crate::util::helper::split_u16;
+use crate::util::helper::{combine_to_u16, split_u16};
 
 const V_RAM_SIZE: usize = 8192;
 const W_RAM_SIZE: usize = 8192;
+const OAM_SIZE: usize = 160;
 const H_RAM_SIZE: usize = 127;
 
 const CART_START: u16 = 0;
@@ -14,6 +19,9 @@ const V_RAM_END: u16 = 0x9FFF;
 
 const W_RAM_START: u16 = 0xC000;
 const W_RAM_END: u16 = 0xDFFF;
+
+const OAM_START: u16 = 0xFE00;
+const OAM_END: u16 = 0xFE9F;
 
 const IO_REGS_START: u16 = 0xFF00;
 const IO_REGS_END: u16 = 0xFF70;
@@ -27,8 +35,11 @@ pub struct Bus {
     cartridge: Cartridge,
     v_ram: [u8; V_RAM_SIZE], // video ram
     w_ram: [u8; W_RAM_SIZE], // work ram
+    oam: [u8; OAM_SIZE],     // object attribute memory
     h_ram: [u8; H_RAM_SIZE], // high ram
     pub v_ram_dirty: bool,
+
+    pub current_ff_44: RefCell<u8>,
 }
 
 impl Bus {
@@ -37,13 +48,16 @@ impl Bus {
             cartridge,
             v_ram: [0; V_RAM_SIZE],
             w_ram: [0; W_RAM_SIZE],
+            oam: [0; OAM_SIZE],
             h_ram: [0; H_RAM_SIZE],
             v_ram_dirty: false,
+
+            current_ff_44: RefCell::new(0),
         }
     }
 
     // https://gbdev.io/pandocs/Memory_Map.html
-    pub fn read(&self, cpu: &Cpu, address: u16) -> u8 {
+    pub fn read(&self, mapped_cpu: Option<&Cpu>, address: u16) -> u8 {
         // println!("Reading bus at {:#x}", address);
         match address {
             CART_START..=CART_END => self.cartridge.read(address as usize),
@@ -55,18 +69,37 @@ impl Bus {
                 let w_ram_address = (address - W_RAM_START) as usize;
                 self.w_ram[w_ram_address]
             }
+            OAM_START..=OAM_END => {
+                // match mapped_cpu {
+                //     Some(cpu) => {
+                //         if cpu.dma.is_active() {
+                //             return 0xFF;
+                //         }
+                //     }
+                //     _ => (),
+                // }
+                let oam_address = (address - OAM_START) as usize;
+                self.oam[oam_address]
+            }
             0xFF44 => 0x90, // TODO: Remove this, this is for Gameboy Doctor
             IO_REGS_START..=IO_REGS_END => {
-                let (_, lower) = split_u16(address);
-                self.read_mapped_io_register(cpu, lower)
+                if let Some(cpu) = mapped_cpu {
+                    let (_, lower) = split_u16(address);
+                    self.read_mapped_io_register(cpu, lower)
+                } else {
+                    0
+                }
             }
             H_RAM_START..=H_RAM_END => {
                 let h_ram_address = (address - H_RAM_START) as usize;
                 self.h_ram[h_ram_address]
             }
             INTERRUPT_ENABLED => {
-                // eprintln!("Read from FFFF, got: {}", cpu.interrupt_handler.enabled());
-                cpu.interrupt_handler.enabled()
+                if let Some(cpu) = mapped_cpu {
+                    cpu.interrupt_handler.enabled()
+                } else {
+                    0
+                }
             }
             _ => 0, // TODO: _ => unreachable!(),
         }
@@ -79,15 +112,22 @@ impl Bus {
             0x06 => cpu.timer.modulo(),
             0x07 => cpu.timer.control(),
 
-            0x0F => {
-                // eprintln!(
-                //     "Reading from FF0F, got {:b}",
-                //     cpu.interrupt_handler.requested()
-                // );
-                cpu.interrupt_handler.requested()
+            0x40 => {
+                eprintln!("reading from 40");
+                0
             }
+
+            0x46 => {
+                if cpu.dma.is_active() {
+                    1
+                } else {
+                    0
+                }
+            }
+
+            0x0F => cpu.interrupt_handler.requested(),
             _ => {
-                // eprintln!("{} is not mapped yet!", offset);
+                eprintln!("{} is not mapped yet!", offset);
                 0
             }
         }
@@ -108,6 +148,10 @@ impl Bus {
                 let h_ram_address = (address - W_RAM_START) as usize;
                 self.w_ram[h_ram_address] = data
             }
+            OAM_START..=OAM_END => {
+                let (_, lower) = split_u16(address);
+                self.write_oam(lower, data);
+            }
             IO_REGS_START..=IO_REGS_END => {
                 let (_, lower) = split_u16(address);
                 self.write_mapped_io_register(cpu, lower, data);
@@ -124,12 +168,19 @@ impl Bus {
         }
     }
 
+    pub fn write_oam(&mut self, offset: u8, data: u8) {
+        let oam_address = combine_to_u16(0xFE, offset) - OAM_START;
+        self.oam[oam_address as usize] = data
+    }
+
     fn write_mapped_io_register(&self, cpu: &mut Cpu, offset: u8, data: u8) {
         match offset {
             0x04 => cpu.timer.reset_divider(),
             0x05 => cpu.timer.set_counter(data),
             0x06 => cpu.timer.set_modulo(data),
             0x07 => cpu.timer.set_control(data),
+
+            0x46 => cpu.dma.start(data),
 
             0x0F => {
                 // eprintln!("Set FF0F requested: {:b}", data);
