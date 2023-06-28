@@ -1,8 +1,9 @@
 use std::cell::RefCell;
 
 use super::cartridge::Cartridge;
-use super::lcd::Lcd;
+use super::lcd::{Lcd, Palette};
 use super::oam::Oam;
+use super::ppu::Ppu;
 use crate::memory::dma::Dma;
 use crate::memory::interrupts::{Interrupt, InterruptHandler};
 use crate::memory::timer::Timer;
@@ -32,7 +33,6 @@ const H_RAM_END: u16 = 0xFFFE;
 
 const INTERRUPT_ENABLED: u16 = 0xFFFF;
 
-#[derive(Debug)]
 pub struct Bus {
     pub cartridge: Cartridge,  // mapped in Cartridge data
     pub lcd: Lcd,              // LCD registers
@@ -40,17 +40,15 @@ pub struct Bus {
     pub int: InterruptHandler, // requested and pending interrupts
     pub dma: Dma,              // Data Transfer unit
     pub oam: Oam,              // Object Attribute Memory
+    pub ppu: Ppu,              // Pixel Processing Unit
 
     v_ram: [u8; V_RAM_SIZE], // video ram
     w_ram: [u8; W_RAM_SIZE], // work ram
     h_ram: [u8; H_RAM_SIZE], // high ram
-    pub v_ram_dirty: bool,
-
-    bla: RefCell<u8>,
 }
 
 impl Bus {
-    pub fn new(cartridge: Cartridge) -> Self {
+    pub fn new(cartridge: Cartridge, ppu: Ppu) -> Self {
         Bus {
             cartridge,
             lcd: Lcd::new(),
@@ -58,13 +56,11 @@ impl Bus {
             int: InterruptHandler::new(),
             dma: Dma::new(),
             oam: Oam::new(),
+            ppu,
 
             v_ram: [0; V_RAM_SIZE],
             w_ram: [0; W_RAM_SIZE],
             h_ram: [0; H_RAM_SIZE],
-            v_ram_dirty: false,
-
-            bla: RefCell::new(0x90),
         }
     }
 
@@ -86,11 +82,6 @@ impl Bus {
                 let (_, lower) = split_u16(oam_address);
                 self.oam.read(lower)
             }
-            0xFF44 => {
-                let mut wow = self.bla.borrow_mut();
-                *wow += 1;
-                *wow
-            } // TODO: Remove this, this is for Gameboy Doctor
             IO_REGS_START..=IO_REGS_END => {
                 let (_, lower) = split_u16(address);
                 self.read_mapped_io_register(lower)
@@ -111,18 +102,26 @@ impl Bus {
             0x06 => self.timer.modulo(),
             0x07 => self.timer.control(),
 
+            0x0F => self.int.requested(),
+
             0x40 => self.lcd.control,
             0x41 => self.lcd.status,
-
+            0x42 => self.lcd.scroll_y,
+            0x43 => self.lcd.scroll_x,
+            0x44 => self.lcd.ly,
+            0x45 => self.lcd.ly_compare,
             0x46 => {
                 if self.dma.is_active() {
-                    1
+                    0xFF
                 } else {
-                    0
+                    self.dma.get_last_address()
                 }
             }
-
-            0x0F => self.int.requested(),
+            0x47 => self.lcd.bg_palette,
+            0x48 => self.lcd.obj_palette_0,
+            0x49 => self.lcd.obj_palette_1,
+            0x4A => self.lcd.win_y,
+            0x4B => self.lcd.win_x,
             _ => {
                 eprintln!("{} is not mapped yet!", offset);
                 0
@@ -139,7 +138,6 @@ impl Bus {
             V_RAM_START..=V_RAM_END => {
                 let v_ram_address = (address - V_RAM_START) as usize;
                 self.v_ram[v_ram_address] = data;
-                self.v_ram_dirty = true
             }
             W_RAM_START..=W_RAM_END => {
                 let h_ram_address = (address - W_RAM_START) as usize;
@@ -172,13 +170,20 @@ impl Bus {
             0x06 => self.timer.set_modulo(data),
             0x07 => self.timer.set_control(data),
 
-            0x46 => self.dma.start(data),
+            0x0F => self.int.set_requested(data),
 
-            0x0F => {
-                // eprintln!("Set FF0F requested: {:b}", data);
-                self.int.set_requested(data)
-            }
-            // _ => eprintln!("{} is not mapped yet!", offset),
+            0x40 => self.lcd.control = data,
+            0x41 => self.lcd.status = data,
+            0x42 => self.lcd.scroll_y = data,
+            0x43 => self.lcd.scroll_x = data,
+            0x44 => self.lcd.ly = data,
+            0x45 => self.lcd.ly_compare = data,
+            0x46 => self.dma.start(data),
+            0x47 => self.lcd.update_palette(data, Palette::Background),
+            0x48 => self.lcd.update_palette(data, Palette::Obj0),
+            0x49 => self.lcd.update_palette(data, Palette::Obj1),
+            0x4A => self.lcd.win_y = data,
+            0x4B => self.lcd.win_x = data,
             _ => (),
         }
     }

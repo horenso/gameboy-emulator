@@ -38,6 +38,10 @@ impl Dma {
         self.is_active
     }
 
+    pub fn get_last_address(&self) -> u8 {
+        self.lower
+    }
+
     pub fn tick(bus: &mut Bus) {
         if !bus.dma.is_active {
             return;

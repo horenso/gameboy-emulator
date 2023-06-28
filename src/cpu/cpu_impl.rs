@@ -9,7 +9,6 @@ use crate::{
 };
 use std::io::Write;
 
-#[derive(Debug)]
 pub struct Cpu {
     pub(super) regs: Registers,
     pub bus: Bus,
@@ -33,10 +32,10 @@ impl Cpu {
 
     pub fn fetch_and_execute(&mut self) {
         if self.is_halted {
-            eprintln!(
-                "{}: CPU is halted: {:?} {:?}",
-                self.counter, self.bus.timer, self.bus.int
-            );
+            // eprintln!(
+            //     "{}: CPU is halted: {:?} {:?}",
+            //     self.counter, self.bus.timer, self.bus.int
+            // );
             self.tick(1);
         } else {
             let inst = self.fetch();

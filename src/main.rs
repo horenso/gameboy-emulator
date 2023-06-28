@@ -40,11 +40,11 @@ fn main() -> Result<(), String> {
     let print_cpu_debug = args.debug_print;
     let mut show_background = args.draw_background;
 
-    let mut bus = Bus::new(cartridge);
-    let mut cpu = Cpu::new(bus);
-
     let sdl_context = sdl2::init()?;
-    let mut video = Ppu::new(&sdl_context);
+    let ppu = Ppu::new(&sdl_context);
+
+    let mut bus = Bus::new(cartridge, ppu);
+    let mut cpu = Cpu::new(bus);
 
     let mut event_pump = sdl_context.event_pump()?;
     let mut is_paused = false;
@@ -58,7 +58,7 @@ fn main() -> Result<(), String> {
                 } => match key {
                     Keycode::Escape => break 'main_loop,
                     Keycode::P => {
-                        is_paused = false;
+                        is_paused = !is_paused;
                         if is_paused {
                             println!("Paused!")
                         }
@@ -82,13 +82,11 @@ fn main() -> Result<(), String> {
             }
             cpu.fetch_and_execute();
         }
-        is_paused = true;
 
-        if show_background && cpu.bus.v_ram_dirty {
+        if show_background {
             let now = Instant::now();
 
-            video.draw(&cpu);
-            cpu.bus.v_ram_dirty = false;
+            Ppu::draw(&mut cpu.bus);
 
             eprintln!("Drawing took: {:.2?}", now.elapsed());
         }
