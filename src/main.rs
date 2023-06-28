@@ -1,14 +1,12 @@
-mod bus;
-mod cartridge;
-mod ppu;
-mod proc;
+mod cpu;
+mod memory;
 mod util;
 
-use bus::Bus;
-use cartridge::Cartridge;
 use clap::Parser;
-use ppu::Ppu;
-use proc::cpu::Cpu;
+use cpu::cpu_impl::Cpu;
+use memory::bus::Bus;
+use memory::cartridge::Cartridge;
+use memory::ppu::Ppu;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::io;
@@ -16,8 +14,8 @@ use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 const FREQUENCY_HZ: u64 = 4194304;
-const CYCLES_IN_ONE_SIXTIETH_S: u64 = 69905;
-const ONE_SIXTIETH_S: Duration = Duration::from_nanos(16_666_667);
+const CYCLES_IN_ONE_SIXTIETH_S: u64 = 70224;
+const ONE_SIXTIETH_S: Duration = Duration::from_nanos(16_700_000);
 
 #[derive(Parser)]
 #[command(author)]
@@ -42,8 +40,8 @@ fn main() -> Result<(), String> {
     let print_cpu_debug = args.debug_print;
     let mut show_background = args.draw_background;
 
-    let mut cpu = Cpu::new();
     let mut bus = Bus::new(cartridge);
+    let mut cpu = Cpu::new(bus);
 
     let sdl_context = sdl2::init()?;
     let mut video = Ppu::new(&sdl_context);
@@ -80,16 +78,17 @@ fn main() -> Result<(), String> {
         let before_run = Instant::now();
         while cpu.cycles < CYCLES_IN_ONE_SIXTIETH_S {
             if print_cpu_debug {
-                cpu.debug_print(&bus, &mut io::stdout());
+                cpu.debug_print(&mut io::stdout());
             }
-            cpu.fetch_and_execute(&mut bus);
+            cpu.fetch_and_execute();
         }
+        is_paused = true;
 
-        if show_background && bus.v_ram_dirty {
+        if show_background && cpu.bus.v_ram_dirty {
             let now = Instant::now();
 
-            video.draw(&bus, &cpu);
-            bus.v_ram_dirty = false;
+            video.draw(&cpu);
+            cpu.bus.v_ram_dirty = false;
 
             eprintln!("Drawing took: {:.2?}", now.elapsed());
         }
@@ -102,6 +101,5 @@ fn main() -> Result<(), String> {
         }
         cpu.cycles = 0;
     }
-    // eprintln!("Ran for {} cycles", cpu.counter);
     Ok(())
 }

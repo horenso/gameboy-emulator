@@ -1,14 +1,15 @@
-use std::arch::x86_64::CpuidResult;
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 
-use crate::cartridge::Cartridge;
-use crate::proc::cpu::Cpu;
-use crate::util::helper::{combine_to_u16, split_u16};
+use super::cartridge::Cartridge;
+use super::lcd::Lcd;
+use super::oam::Oam;
+use crate::memory::dma::Dma;
+use crate::memory::interrupts::{Interrupt, InterruptHandler};
+use crate::memory::timer::Timer;
+use crate::util::helper::split_u16;
 
 const V_RAM_SIZE: usize = 8192;
 const W_RAM_SIZE: usize = 8192;
-const OAM_SIZE: usize = 160;
 const H_RAM_SIZE: usize = 127;
 
 const CART_START: u16 = 0;
@@ -31,33 +32,44 @@ const H_RAM_END: u16 = 0xFFFE;
 
 const INTERRUPT_ENABLED: u16 = 0xFFFF;
 
+#[derive(Debug)]
 pub struct Bus {
-    cartridge: Cartridge,
+    pub cartridge: Cartridge,  // mapped in Cartridge data
+    pub lcd: Lcd,              // LCD registers
+    pub timer: Timer,          // timer registers
+    pub int: InterruptHandler, // requested and pending interrupts
+    pub dma: Dma,              // Data Transfer unit
+    pub oam: Oam,              // Object Attribute Memory
+
     v_ram: [u8; V_RAM_SIZE], // video ram
     w_ram: [u8; W_RAM_SIZE], // work ram
-    oam: [u8; OAM_SIZE],     // object attribute memory
     h_ram: [u8; H_RAM_SIZE], // high ram
     pub v_ram_dirty: bool,
 
-    pub current_ff_44: RefCell<u8>,
+    bla: RefCell<u8>,
 }
 
 impl Bus {
     pub fn new(cartridge: Cartridge) -> Self {
         Bus {
             cartridge,
+            lcd: Lcd::new(),
+            timer: Timer::new(),
+            int: InterruptHandler::new(),
+            dma: Dma::new(),
+            oam: Oam::new(),
+
             v_ram: [0; V_RAM_SIZE],
             w_ram: [0; W_RAM_SIZE],
-            oam: [0; OAM_SIZE],
             h_ram: [0; H_RAM_SIZE],
             v_ram_dirty: false,
 
-            current_ff_44: RefCell::new(0),
+            bla: RefCell::new(0x90),
         }
     }
 
     // https://gbdev.io/pandocs/Memory_Map.html
-    pub fn read(&self, mapped_cpu: Option<&Cpu>, address: u16) -> u8 {
+    pub fn read(&self, address: u16) -> u8 {
         // println!("Reading bus at {:#x}", address);
         match address {
             CART_START..=CART_END => self.cartridge.read(address as usize),
@@ -70,62 +82,47 @@ impl Bus {
                 self.w_ram[w_ram_address]
             }
             OAM_START..=OAM_END => {
-                // match mapped_cpu {
-                //     Some(cpu) => {
-                //         if cpu.dma.is_active() {
-                //             return 0xFF;
-                //         }
-                //     }
-                //     _ => (),
-                // }
-                let oam_address = (address - OAM_START) as usize;
-                self.oam[oam_address]
+                let oam_address = address - OAM_START;
+                let (_, lower) = split_u16(oam_address);
+                self.oam.read(lower)
             }
-            0xFF44 => 0x90, // TODO: Remove this, this is for Gameboy Doctor
+            0xFF44 => {
+                let mut wow = self.bla.borrow_mut();
+                *wow += 1;
+                *wow
+            } // TODO: Remove this, this is for Gameboy Doctor
             IO_REGS_START..=IO_REGS_END => {
-                if let Some(cpu) = mapped_cpu {
-                    let (_, lower) = split_u16(address);
-                    self.read_mapped_io_register(cpu, lower)
-                } else {
-                    0
-                }
+                let (_, lower) = split_u16(address);
+                self.read_mapped_io_register(lower)
             }
             H_RAM_START..=H_RAM_END => {
                 let h_ram_address = (address - H_RAM_START) as usize;
                 self.h_ram[h_ram_address]
             }
-            INTERRUPT_ENABLED => {
-                if let Some(cpu) = mapped_cpu {
-                    cpu.interrupt_handler.enabled()
-                } else {
-                    0
-                }
-            }
+            INTERRUPT_ENABLED => self.int.enabled(),
             _ => 0, // TODO: _ => unreachable!(),
         }
     }
 
-    fn read_mapped_io_register(&self, cpu: &Cpu, offset: u8) -> u8 {
+    fn read_mapped_io_register(&self, offset: u8) -> u8 {
         match offset {
-            0x04 => cpu.timer.divider(),
-            0x05 => cpu.timer.counter(),
-            0x06 => cpu.timer.modulo(),
-            0x07 => cpu.timer.control(),
+            0x04 => self.timer.divider(),
+            0x05 => self.timer.counter(),
+            0x06 => self.timer.modulo(),
+            0x07 => self.timer.control(),
 
-            0x40 => {
-                eprintln!("reading from 40");
-                0
-            }
+            0x40 => self.lcd.control,
+            0x41 => self.lcd.status,
 
             0x46 => {
-                if cpu.dma.is_active() {
+                if self.dma.is_active() {
                     1
                 } else {
                     0
                 }
             }
 
-            0x0F => cpu.interrupt_handler.requested(),
+            0x0F => self.int.requested(),
             _ => {
                 eprintln!("{} is not mapped yet!", offset);
                 0
@@ -133,7 +130,7 @@ impl Bus {
         }
     }
 
-    pub fn write(&mut self, cpu: &mut Cpu, address: u16, data: u8) {
+    pub fn write(&mut self, address: u16, data: u8) {
         // println!("Writing to address: {:#x} data: {:#x}", address, data);
         match address {
             CART_START..=CART_END => {
@@ -150,11 +147,11 @@ impl Bus {
             }
             OAM_START..=OAM_END => {
                 let (_, lower) = split_u16(address);
-                self.write_oam(lower, data);
+                self.oam.write(lower, data);
             }
             IO_REGS_START..=IO_REGS_END => {
                 let (_, lower) = split_u16(address);
-                self.write_mapped_io_register(cpu, lower, data);
+                self.write_mapped_io_register(lower, data);
             }
             H_RAM_START..=H_RAM_END => {
                 let h_ram_address = (address - H_RAM_START) as usize;
@@ -162,29 +159,24 @@ impl Bus {
             }
             INTERRUPT_ENABLED => {
                 // eprintln!("Writting to FFFF to enable {:b}", data);
-                cpu.interrupt_handler.set_enabled(data);
+                self.int.set_enabled(data);
             }
             _ => (), // TODO: unreachable
         }
     }
 
-    pub fn write_oam(&mut self, offset: u8, data: u8) {
-        let oam_address = combine_to_u16(0xFE, offset) - OAM_START;
-        self.oam[oam_address as usize] = data
-    }
-
-    fn write_mapped_io_register(&self, cpu: &mut Cpu, offset: u8, data: u8) {
+    fn write_mapped_io_register(&mut self, offset: u8, data: u8) {
         match offset {
-            0x04 => cpu.timer.reset_divider(),
-            0x05 => cpu.timer.set_counter(data),
-            0x06 => cpu.timer.set_modulo(data),
-            0x07 => cpu.timer.set_control(data),
+            0x04 => self.timer.reset_divider(),
+            0x05 => self.timer.set_counter(data),
+            0x06 => self.timer.set_modulo(data),
+            0x07 => self.timer.set_control(data),
 
-            0x46 => cpu.dma.start(data),
+            0x46 => self.dma.start(data),
 
             0x0F => {
                 // eprintln!("Set FF0F requested: {:b}", data);
-                cpu.interrupt_handler.set_requested(data)
+                self.int.set_requested(data)
             }
             // _ => eprintln!("{} is not mapped yet!", offset),
             _ => (),

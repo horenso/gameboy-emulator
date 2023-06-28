@@ -18,6 +18,10 @@ pub fn is_bit_set(data: u8, index: u8) -> bool {
     data & (1 << index) != 0
 }
 
+pub fn set_bit(data: u8, index: u8, value: bool) -> u8 {
+    (if value { 1 } else { 0 } << index) | data
+}
+
 mod tests {
     use super::*;
 
@@ -27,5 +31,13 @@ mod tests {
         assert_eq!(is_bit_set(data, 0), false);
         assert_eq!(is_bit_set(data, 1), false);
         assert_eq!(is_bit_set(data, 2), true);
+    }
+
+    #[test]
+    fn test_set_bit() {
+        assert_eq!(0b0010_0000, set_bit(0, 5, true));
+        assert_eq!(0b0010_0001, set_bit(0b0010_0001, 0, true));
+        assert_eq!(0b0010_0001, set_bit(0b0010_0000, 0, true));
+        assert_eq!(0b1111_0111, set_bit(0b1111_0111, 3, false));
     }
 }

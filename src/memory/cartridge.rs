@@ -1,5 +1,6 @@
 use std::{fs::File, io::Read};
 
+#[derive(Debug)]
 pub struct Cartridge {
     pub data: Vec<u8>,
     pub title: String,

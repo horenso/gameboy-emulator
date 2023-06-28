@@ -6,17 +6,19 @@ use sdl2::{
     Sdl,
 };
 
-use crate::proc::cpu::Cpu;
-use crate::{bus::Bus, util::helper::is_bit_set};
+use crate::cpu::cpu_impl::Cpu;
+use crate::util::helper::is_bit_set;
+
+use super::bus::Bus;
 
 // grid of 20x20 8x8 tiles with 3 color channels
 const TILE_DATA_SIZE: usize = 20 * 20 * 8 * 8 * 3;
 
 const COLORS: [(u8, u8, u8); 4] = [
-    (0xFF, 0xFF, 0xFF),
-    (0x80, 0x80, 0x80),
-    (0x00, 0xFF, 0xFF),
-    (0x00, 0x00, 0x00),
+    (0x9B, 0xBC, 0xDF), // Light Gray
+    (0x8B, 0xAC, 0x0F), // Dark Gray
+    (0x30, 0x62, 0x30), // Lighter Gray
+    (0x0F, 0x38, 0x0F), // Black
 ];
 
 pub struct Ppu<'a> {
@@ -34,7 +36,7 @@ impl Ppu<'_> {
 
         let window = video_subsystem
             .window("Game Boy", 256 + 160, 256 + 160)
-            // .position_centered()
+            .position_centered()
             .build()
             .expect("could not initialize video subsystem");
 
@@ -67,19 +69,19 @@ impl Ppu<'_> {
         }
     }
 
-    fn update_tile_data(&mut self, bus: &Bus, cpu: &Cpu, start_address: u16) {
+    fn update_tile_data(&mut self, cpu: &Cpu, start_address: u16) {
         let mut addr = 0x8000;
         eprintln!("start_address {:x}", addr);
         for tile in 0..384 {
             let start_x = (tile % 20) * 8;
             let start_y = (tile / 20) * 8;
-            draw_tile_into_texture(bus, cpu, &mut self.tile_data, addr, start_x, start_y);
+            draw_tile_into_texture(cpu, &mut self.tile_data, addr, start_x, start_y);
             addr += 16;
         }
     }
 
-    pub fn draw(&mut self, bus: &Bus, cpu: &Cpu) {
-        let lcdc_control = bus.read(Option::Some(cpu), 0xFF40);
+    pub fn draw(&mut self, cpu: &Cpu) {
+        let lcdc_control = cpu.bus.read(0xFF40);
 
         let lcd_enabled = is_bit_set(lcdc_control, 7);
         let tile_map_area = is_bit_set(lcdc_control, 6);
@@ -95,7 +97,7 @@ impl Ppu<'_> {
             0x9800
         };
 
-        self.update_tile_data(bus, cpu, tile_data_start_addr);
+        self.update_tile_data(cpu, tile_data_start_addr);
 
         eprintln!("start addr {:x}", start_addr);
 
@@ -109,7 +111,7 @@ impl Ppu<'_> {
 
         for tile_number in 0..1024 {
             let addr = start_addr + tile_number;
-            let tile_id = bus.read(Option::Some(cpu), addr) as i32;
+            let tile_id = cpu.bus.read(addr) as i32;
             // let tile_id = if relative_addr_mode {
             //     tile_id_read + (-128)
             // } else {
@@ -138,7 +140,7 @@ impl Ppu<'_> {
     }
 
     fn draw_background(&self, bus: &Bus, cpu: &Cpu) {
-        let lcdc_control = bus.read(Option::Some(cpu), 0xFF40);
+        let lcdc_control = bus.read(0xFF40);
 
         let lcd_enabled = is_bit_set(lcdc_control, 7);
         let tile_map_area = is_bit_set(lcdc_control, 6);
@@ -154,24 +156,17 @@ impl Ppu<'_> {
             0x9800
         };
 
-        let scroll_y = bus.read(Option::Some(cpu), 0xff42);
-        let scroll_x = bus.read(Option::Some(cpu), 0xff43);
+        let scroll_y = bus.read(0xff42);
+        let scroll_x = bus.read(0xff43);
     }
 }
 
-fn draw_tile_into_texture(
-    bus: &Bus,
-    cpu: &Cpu,
-    buffer: &mut [u8],
-    addr: u16,
-    start_x: i32,
-    start_y: i32,
-) {
+fn draw_tile_into_texture(cpu: &Cpu, buffer: &mut [u8], addr: u16, start_x: i32, start_y: i32) {
     let mut addr = addr;
     for pixel_y in 0..8 {
-        let byte1 = bus.read(Option::Some(cpu), addr);
+        let byte1 = cpu.bus.read(addr);
         addr += 1;
-        let byte2 = bus.read(Option::Some(cpu), addr);
+        let byte2 = cpu.bus.read(addr);
         addr += 1;
         for shift in (0..8).rev() {
             let higher = ((byte1 >> shift) & 1) << 1;
