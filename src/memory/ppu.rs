@@ -129,6 +129,8 @@ impl Ppu {
     fn draw_background(&self, bus: &Bus) {
         let lcdc_control = bus.read(0xFF40);
 
+        let lcd = &bus.lcd;
+
         let lcd_enabled = is_bit_set(lcdc_control, 7);
         let tile_map_area = is_bit_set(lcdc_control, 6);
         let window_enabled = is_bit_set(lcdc_control, 5);
@@ -166,4 +168,6 @@ impl Ppu {
             }
         }
     }
+
+    pub fn tick(bus: &mut Bus) {}
 }

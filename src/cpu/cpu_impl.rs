@@ -4,7 +4,7 @@ use super::{
     registers::Registers,
 };
 use crate::{
-    memory::{bus::Bus, dma::Dma, interrupts::Interrupt},
+    memory::{bus::Bus, dma::Dma, interrupts::Interrupt, ppu::Ppu},
     util::helper::{combine_to_u16, split_u16, split_u32},
 };
 use std::io::Write;
@@ -65,6 +65,7 @@ impl Cpu {
                 self.cycles += 1;
             }
             Dma::tick(&mut self.bus);
+            Ppu::tick(&mut self.bus);
         }
     }
 
