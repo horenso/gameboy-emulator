@@ -1,5 +1,5 @@
 use super::{
-    decode::{decode_prefixed, decode_unprefixed},
+    decode::{PREFIXED_INSTRUCTIONS, UNPREFIXED_INSTRUCTIONS},
     instruction::{Cond, Inst, Operand, Reg16, Reg8, Rotation, ShiftType},
     registers::Registers,
 };
@@ -102,10 +102,10 @@ impl Cpu {
 
     fn fetch(&mut self) -> Inst {
         let mut fetched = self.read_next_8bit();
-        let mut inst = decode_unprefixed(fetched);
+        let mut inst = UNPREFIXED_INSTRUCTIONS[fetched as usize];
         if inst == Inst::Prefix {
             fetched = self.read_next_8bit();
-            inst = decode_prefixed(fetched);
+            inst = PREFIXED_INSTRUCTIONS[fetched as usize];
             // eprint!("pre ");
         }
         // eprint!("{:#04X} ", fetched);

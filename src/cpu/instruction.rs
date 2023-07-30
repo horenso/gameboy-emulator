@@ -1,4 +1,4 @@
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Inst {
     Prefix, // 0xCB is a prefix for 2 byte instructions
 
@@ -56,7 +56,7 @@ pub enum Inst {
     ComplementCarryFlag,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Operand {
     D8,            // immediate 8-bit data
     D16,           // immediate 16-bit data
@@ -68,7 +68,7 @@ pub enum Operand {
     IndHighPlusC,  // value at the address of 0xFF00 + register C
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Rotation {
     LeftThroughCarry,  // RR
     LeftCircular,      // RRC
@@ -76,14 +76,14 @@ pub enum Rotation {
     RightCircular,     // RLC
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum ShiftType {
     LeftArithmetic,
     RightArithmetic,
     RightLogic,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Cond {
     Always,
     NotZero,
@@ -92,7 +92,7 @@ pub enum Cond {
     Carry,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Reg8 {
     A,
     B,
@@ -103,7 +103,7 @@ pub enum Reg8 {
     L,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Reg16 {
     Af,
     Bc,
