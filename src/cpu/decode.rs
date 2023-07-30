@@ -100,6 +100,25 @@ pub fn decode_unprefixed(opcode: u8) -> Inst {
     }
 }
 
+pub fn decode_prefixed(opcode: u8) -> Inst {
+    let y = (opcode & 0b00111000) >> 3;
+    let z = opcode & 0b00000111;
+    let operand = operand(z);
+    match opcode {
+        0x00..=0x07 => Inst::Rotate(Rotation::LeftCircular, operand, true),
+        0x08..=0x0F => Inst::Rotate(Rotation::RightCircular, operand, true),
+        0x10..=0x17 => Inst::Rotate(Rotation::LeftThroughCarry, operand, true),
+        0x18..=0x1F => Inst::Rotate(Rotation::RightThroughCarry, operand, true),
+        0x20..=0x27 => Inst::Shift(ShiftType::LeftArithmetic, operand),
+        0x28..=0x2F => Inst::Shift(ShiftType::RightArithmetic, operand),
+        0x30..=0x37 => Inst::Swap(operand),
+        0x38..=0x3F => Inst::Shift(ShiftType::RightLogic, operand),
+        0x40..=0x7F => Inst::TestBit(y, operand),
+        0x80..=0xBF => Inst::ResetBit(y, operand),
+        0xC0..=0xFF => Inst::SetBit(y, operand),
+    }
+}
+
 fn operand(code: u8) -> Operand {
     match code {
         0 => Operand::R8(Reg8::B),
@@ -156,25 +175,6 @@ fn arithmetic_logic(y: u8, z: u8, immediate: bool) -> Inst {
         6 => Inst::Or(operand),
         7 => Inst::Cp(operand),
         _ => unreachable!(),
-    }
-}
-
-pub fn decode_prefixed(opcode: u8) -> Inst {
-    let y = (opcode & 0b00111000) >> 3;
-    let z = opcode & 0b00000111;
-    let operand = operand(z);
-    match opcode {
-        0x00..=0x07 => Inst::Rotate(Rotation::LeftCircular, operand, true),
-        0x08..=0x0F => Inst::Rotate(Rotation::RightCircular, operand, true),
-        0x10..=0x17 => Inst::Rotate(Rotation::LeftThroughCarry, operand, true),
-        0x18..=0x1F => Inst::Rotate(Rotation::RightThroughCarry, operand, true),
-        0x20..=0x27 => Inst::Shift(ShiftType::LeftArithmetic, operand),
-        0x28..=0x2F => Inst::Shift(ShiftType::RightArithmetic, operand),
-        0x30..=0x37 => Inst::Swap(operand),
-        0x38..=0x3F => Inst::Shift(ShiftType::RightLogic, operand),
-        0x40..=0x7F => Inst::TestBit(y, operand),
-        0x80..=0xBF => Inst::ResetBit(y, operand),
-        0xC0..=0xFF => Inst::SetBit(y, operand),
     }
 }
 
