@@ -239,7 +239,7 @@ impl Cpu {
         .unwrap();
     }
 
-    pub fn execute(&mut self, inst: Inst) {
+    fn execute(&mut self, inst: Inst) {
         match inst {
             Inst::Prefix => unreachable!(),
 

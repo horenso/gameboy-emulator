@@ -96,7 +96,7 @@ const fn decode_unprefixed(opcode: u8) -> Inst {
                 _ => unreachable!(),
             },
             3 => match y {
-                0 => Inst::JumpAddr(Cond::Always), // TODO: Is this A16?
+                0 => Inst::JumpAddr(Cond::Always),
                 1 => Inst::Prefix,
                 2..=5 => Inst::NoOp,
                 6 => Inst::Di,

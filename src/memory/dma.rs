@@ -1,8 +1,3 @@
-use std::{
-    cell::{Cell, RefCell},
-    rc::Rc,
-};
-
 use crate::{memory::bus::Bus, util::helper::combine_to_u16};
 
 /// Direct Memory Access

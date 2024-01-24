@@ -69,14 +69,14 @@ pub fn start(debug_print: bool, draw_background: bool, rom_path: PathBuf) -> Res
 
             Ppu::draw(&mut cpu.bus);
 
-            eprintln!("Drawing took: {:.2?}", now.elapsed());
+            // eprintln!("Drawing took: {:.2?}", now.elapsed());
         }
 
         let delta_time = before_run.elapsed();
         if delta_time < ONE_SIXTIETH_S {
             let time_to_sleep = ONE_SIXTIETH_S - delta_time;
             sleep(time_to_sleep);
-            eprintln!("Done frame, slept: {} ms", time_to_sleep.as_millis());
+            // eprintln!("Done frame, slept: {} ms", time_to_sleep.as_millis());
         }
         cpu.cycles = 0;
     }

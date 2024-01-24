@@ -55,7 +55,7 @@ impl Ppu {
 
     fn update_tile_data(bus: &mut Bus, start_address: u16) {
         let mut addr = 0x8000;
-        eprintln!("start_address {:x}", addr);
+        // eprintln!("start_address {:x}", addr);
         for tile in 0..384 {
             let start_x = (tile % 20) * 8;
             let start_y = (tile / 20) * 8;
@@ -79,9 +79,9 @@ impl Ppu {
 
         Self::update_tile_data(bus, tile_data_start_addr);
 
-        eprintln!("start addr {:x}", start_addr);
+        // eprintln!("start addr {:x}", start_addr);
 
-        eprintln!("SCY: {} SCX: {}", bus.lcd.scroll_y, bus.lcd.scroll_x);
+        // eprintln!("SCY: {} SCX: {}", bus.lcd.scroll_y, bus.lcd.scroll_x);
 
         let mut texture = bus
             .ppu

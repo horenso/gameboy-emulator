@@ -1,11 +1,9 @@
-use std::cell::RefCell;
-
 use super::cartridge::Cartridge;
 use super::lcd::{Lcd, Palette};
 use super::oam::Oam;
 use super::ppu::Ppu;
 use crate::memory::dma::Dma;
-use crate::memory::interrupts::{Interrupt, InterruptHandler};
+use crate::memory::interrupts::InterruptHandler;
 use crate::memory::timer::Timer;
 use crate::util::helper::split_u16;
 
@@ -132,9 +130,7 @@ impl Bus {
     pub fn write(&mut self, address: u16, data: u8) {
         // println!("Writing to address: {:#x} data: {:#x}", address, data);
         match address {
-            CART_START..=CART_END => {
-                // eprintln!("Writting to cartridge at {:x}", address);
-            }
+            CART_START..=CART_END => self.cartridge.write(address, data),
             V_RAM_START..=V_RAM_END => {
                 let v_ram_address = (address - V_RAM_START) as usize;
                 self.v_ram[v_ram_address] = data;
